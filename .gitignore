@@ -1,0 +1,26 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente — NUNCA subir para o git
+.env
+.env.local
+
+# Dados locais gerados em runtime
+sales_log.json
+meta_raw.json
+refresh_status.json
+recs.json
+analise_meta.txt
+
+# Scripts de coleta manual (não fazem parte do deploy)
+fetch_ads.mjs
+fetch_all.mjs
+fetch_meta.mjs
+fetch_meta2.mjs
+
+# Projeto separado dentro da pasta
+ietaam-certifica/
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db

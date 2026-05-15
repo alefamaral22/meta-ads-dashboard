@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bitcoin Dashboard</title>
+
+  <!-- Chart.js: biblioteca gratuita de gráficos, carregada da internet -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- Fonte moderna e gratuita do Google -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ========== CABEÇALHO ========== -->
+  <header class="cabecalho">
+    <div class="cabecalho__logo">
+      <span class="cabecalho__icone">₿</span>
+      <h1 class="cabecalho__titulo">Bitcoin Dashboard</h1>
+    </div>
+    <div class="cabecalho__direita">
+      <span class="cabecalho__atualizacao" id="ultimaAtualizacao">—</span>
+      <button class="btn-atualizar" id="btnAtualizar" title="Atualizar dados">
+        ↻ Atualizar
+      </button>
+    </div>
+  </header>
+
+  <!-- ========== CONTEÚDO PRINCIPAL ========== -->
+  <main class="conteudo">
+
+    <!-- Mensagem de erro (oculta por padrão) -->
+    <div class="alerta-erro" id="alertaErro" hidden>
+      <span>⚠ Não foi possível carregar os dados. Verifique sua conexão.</span>
+      <button class="alerta-erro__btn" id="btnTentarNovamente">Tentar novamente</button>
+    </div>
+
+    <!-- ========== CARDS DE RESUMO ========== -->
+    <section class="cards" aria-label="Resumo do Bitcoin">
+
+      <article class="card" id="cardPreco">
+        <p class="card__rotulo">Preço Atual</p>
+        <p class="card__valor" id="precoAtual">
+          <span class="skeleton">Carregando...</span>
+        </p>
+        <p class="card__detalhe">em dólar americano (USD)</p>
+      </article>
+
+      <article class="card" id="cardVariacao">
+        <p class="card__rotulo">Variação 24h</p>
+        <p class="card__valor card__valor--neutro" id="variacao24h">
+          <span class="skeleton">Carregando...</span>
+        </p>
+        <p class="card__detalhe">últimas 24 horas</p>
+      </article>
+
+      <article class="card" id="cardVolume">
+        <p class="card__rotulo">Volume 24h</p>
+        <p class="card__valor" id="volume24h">
+          <span class="skeleton">Carregando...</span>
+        </p>
+        <p class="card__detalhe">total negociado hoje</p>
+      </article>
+
+      <article class="card" id="cardMarketCap">
+        <p class="card__rotulo">Capitalização</p>
+        <p class="card__valor" id="marketCap">
+          <span class="skeleton">Carregando...</span>
+        </p>
+        <p class="card__detalhe">valor total de mercado</p>
+      </article>
+
+    </section>
+
+    <!-- ========== GRÁFICO PRINCIPAL COM SELETOR ========== -->
+    <section class="secao-grafico-principal">
+
+      <div class="secao-grafico-principal__topo">
+        <h2 class="secao-titulo">Variação de Preço</h2>
+
+        <!-- Botões de período rápido -->
+        <div class="seletor-periodo" role="group" aria-label="Selecionar período">
+          <button class="seletor-periodo__btn seletor-periodo__btn--ativo" data-dias="7">7D</button>
+          <button class="seletor-periodo__btn" data-dias="30">30D</button>
+          <button class="seletor-periodo__btn" data-dias="90">90D</button>
+          <button class="seletor-periodo__btn" data-dias="365">1A</button>
+          <button class="seletor-periodo__btn" data-dias="custom">Personalizado</button>
+        </div>
+      </div>
+
+      <!-- Seletor de datas personalizado (oculto por padrão) -->
+      <div class="seletor-datas" id="seletorDatas" hidden>
+        <label class="seletor-datas__label">
+          De
+          <input class="seletor-datas__input" type="date" id="dataInicio" />
+        </label>
+        <span class="seletor-datas__separador">→</span>
+        <label class="seletor-datas__label">
+          Até
+          <input class="seletor-datas__input" type="date" id="dataFim" />
+        </label>
+        <button class="btn-buscar" id="btnBuscarPeriodo">Buscar</button>
+      </div>
+
+      <!-- Área do gráfico principal -->
+      <div class="grafico-wrapper">
+        <div class="grafico-loading" id="loadingPrincipal">
+          <span class="spinner"></span>
+          <p>Buscando dados...</p>
+        </div>
+        <canvas id="graficoPrincipal" aria-label="Gráfico de variação de preço do Bitcoin"></canvas>
+      </div>
+
+    </section>
+
+    <!-- ========== GRÁFICOS SECUNDÁRIOS (SEMANAL E ANUAL) ========== -->
+    <div class="graficos-secundarios">
+
+      <section class="secao-grafico-secundario">
+        <h2 class="secao-titulo">Últimos 7 dias</h2>
+        <div class="grafico-wrapper grafico-wrapper--pequeno">
+          <div class="grafico-loading" id="loadingSemanal">
+            <span class="spinner"></span>
+          </div>
+          <canvas id="graficoSemanal" aria-label="Variação semanal do Bitcoin"></canvas>
+        </div>
+      </section>
+
+      <section class="secao-grafico-secundario">
+        <h2 class="secao-titulo">Último ano</h2>
+        <div class="grafico-wrapper grafico-wrapper--pequeno">
+          <div class="grafico-loading" id="loadingAnual">
+            <span class="spinner"></span>
+          </div>
+          <canvas id="graficoAnual" aria-label="Variação anual do Bitcoin"></canvas>
+        </div>
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- ========== RODAPÉ ========== -->
+  <footer class="rodape">
+    <p>Dados fornecidos por <a href="https://www.coingecko.com" target="_blank" rel="noopener">CoinGecko API</a> · Atualização gratuita e pública</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

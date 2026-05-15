@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Meta Ads Dashboard — Alef Câmara</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b0d16;
+      --surface: #13162a;
+      --surface2: #1a1e33;
+      --surface3: #20253d;
+      --border: #252b47;
+      --accent: #4f6ef7;
+      --accent2: #7c5cfc;
+      --green: #22d3a5;
+      --red: #f75959;
+      --yellow: #f7c244;
+      --blue: #38bdf8;
+      --text: #e4eaf7;
+      --dim: #7c89ab;
+      --muted: #3e4968;
+      --radius: 14px;
+      --r8: 8px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:0 0 48px}
+    a{color:var(--accent);text-decoration:none}
+
+    /* ── TOP BAR ── */
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:18px 28px;border-bottom:1px solid var(--border);
+      background:var(--surface);position:sticky;top:0;z-index:50;flex-wrap:wrap;gap:10px;
+    }
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand-icon{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#4f6ef7,#7c5cfc);display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+    .brand h1{font-size:1.1rem;font-weight:700}
+    .brand p{font-size:.73rem;color:var(--dim)}
+    .topbar-right{display:flex;gap:8px;align-items:center}
+    .chip{padding:4px 11px;border-radius:20px;font-size:.72rem;font-weight:600;border:1px solid}
+    .chip-green{background:rgba(34,211,165,.1);color:var(--green);border-color:rgba(34,211,165,.3)}
+    .chip-yellow{background:rgba(247,194,68,.1);color:var(--yellow);border-color:rgba(247,194,68,.3)}
+    .chip-blue{background:rgba(79,110,247,.1);color:var(--accent);border-color:rgba(79,110,247,.3)}
+
+    /* ── LAYOUT ── */
+    .page{max-width:1400px;margin:0 auto;padding:28px 24px 0}
+
+    /* ── TAB BAR ── */
+    .tabs{display:flex;gap:4px;padding:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:24px;overflow-x:auto}
+    .tab{padding:8px 18px;border-radius:7px;font-size:.82rem;font-weight:600;cursor:pointer;color:var(--dim);border:none;background:transparent;white-space:nowrap;transition:all .2s}
+    .tab.active{background:var(--accent);color:#fff}
+    .tab-pane{display:none}.tab-pane.active{display:block}
+
+    /* ── KPI STRIP ── */
+    .kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px}
+    .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;transition:transform .2s}
+    .kpi:hover{transform:translateY(-2px)}
+    .kpi::after{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--accent))}
+    .kpi-label{font-size:.68rem;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+    .kpi-val{font-size:1.7rem;font-weight:800;color:var(--c,var(--accent));line-height:1.1;margin-bottom:2px}
+    .kpi-sub{font-size:.72rem;color:var(--muted)}
+    .kpi-ico{position:absolute;right:14px;top:14px;font-size:1.4rem;opacity:.25}
+
+    /* ── GRID ── */
+    .g2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px}
+    .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:20px}
+    @media(max-width:900px){.g2,.g3{grid-template-columns:1fr}}
+
+    /* ── CARD ── */
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+    .card-full{margin-bottom:20px}
+    .card-title{font-size:.85rem;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;color:var(--dim)}
+
+    /* ── TABLE ── */
+    .tbl{width:100%;border-collapse:collapse;font-size:.8rem}
+    .tbl th{text-align:left;padding:9px 12px;color:var(--muted);font-weight:700;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+    .tbl td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle}
+    .tbl tr:last-child td{border-bottom:none}
+    .tbl tr:hover td{background:rgba(255,255,255,.02)}
+    .tbl .num{text-align:right;font-variant-numeric:tabular-nums;font-family:monospace}
+    .tbl .name-cell{max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    /* ── METRIC CHIPS ── */
+    .good{color:var(--green)}.bad{color:var(--red)}.warn{color:var(--yellow)}.info{color:var(--blue)}
+    .pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:700}
+    .pill-g{background:rgba(34,211,165,.12);color:var(--green)}
+    .pill-r{background:rgba(247,89,89,.12);color:var(--red)}
+    .pill-y{background:rgba(247,194,68,.12);color:var(--yellow)}
+    .pill-b{background:rgba(56,189,248,.12);color:var(--blue)}
+
+    /* ── SPEND BAR ── */
+    .spend-bar{height:6px;background:var(--border);border-radius:99px;overflow:hidden;margin-top:4px}
+    .spend-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+
+    /* ── INSTAGRAM CARDS ── */
+    .ig-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:20px}
+    .ig-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;transition:border-color .2s}
+    .ig-card:hover{border-color:var(--accent)}
+    .ig-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:10px}
+    .ig-name{font-size:.85rem;font-weight:700;margin-bottom:2px}
+    .ig-handle{font-size:.72rem;color:var(--dim);margin-bottom:10px}
+    .ig-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+    .ig-stat{background:var(--surface);border-radius:7px;padding:7px 9px}
+    .ig-stat-label{font-size:.62rem;color:var(--muted);margin-bottom:2px}
+    .ig-stat-val{font-size:.95rem;font-weight:700}
+
+    /* ── RECS ── */
+    .rec-list{display:flex;flex-direction:column;gap:12px}
+    .rec{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--c,var(--accent));border-radius:10px;padding:14px 16px}
+    .rec-hdr{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+    .rec-title{font-size:.82rem;font-weight:700}
+    .rec-priority{font-size:.65rem;padding:2px 8px;border-radius:20px;background:rgba(255,255,255,.07);color:var(--dim)}
+    .rec-body{font-size:.79rem;color:var(--dim);line-height:1.55}
+    .rec-action{margin-top:7px;font-size:.76rem;color:var(--accent);font-weight:600}
+
+    /* ── FILTER BAR ── */
+    .filter-bar{display:flex;align-items:center;gap:8px;padding:10px 28px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap;position:sticky;top:57px;z-index:40}
+    .filter-label{font-size:.72rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+    .account-row{display:none;width:100%;align-items:center;gap:8px;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:2px}
+    .account-row.show{display:flex}
+    .filter-presets{display:flex;gap:4px;flex-wrap:wrap}
+    .fp{padding:5px 13px;border-radius:20px;font-size:.76rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--dim);transition:all .15s;white-space:nowrap}
+    .fp:hover{border-color:var(--accent);color:var(--accent)}
+    .fp.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .filter-sep{width:1px;height:20px;background:var(--border);flex-shrink:0}
+    .filter-custom{display:none;align-items:center;gap:6px}
+    .filter-custom.show{display:flex}
+    .filter-custom input[type=date]{padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:.76rem;font-family:inherit;outline:none;color-scheme:dark}
+    .filter-custom input[type=date]:focus{border-color:var(--accent)}
+    .fp-apply{padding:5px 13px;border-radius:20px;font-size:.76rem;font-weight:600;cursor:pointer;background:var(--accent);color:#fff;border:none}
+    .filter-loading{display:none;align-items:center;gap:6px;font-size:.75rem;color:var(--dim)}
+    .filter-loading.show{display:flex}
+    .mini-spin{width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
+    .filter-period-tag{font-size:.72rem;color:var(--dim);background:var(--surface2);padding:3px 10px;border-radius:20px;border:1px solid var(--border)}
+
+    /* ── SALES FORM ── */
+    .sale-wrap{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    @media(max-width:700px){.sale-wrap{grid-template-columns:1fr}}
+    .form-group{margin-bottom:14px}
+    .form-group label{display:block;font-size:.7rem;color:var(--dim);margin-bottom:5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.88rem;font-family:inherit;outline:none;transition:border-color .2s}
+    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent)}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .vprefix{position:relative}.vprefix span{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--dim);pointer-events:none;font-size:.88rem}
+    .vprefix input{padding-left:34px}
+    .btn-sale{width:100%;padding:13px;border-radius:9px;border:none;cursor:pointer;background:linear-gradient(135deg,#25d366,#128c7e);color:#fff;font-size:.92rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s}
+    .btn-sale:hover{opacity:.88}.btn-sale:disabled{opacity:.45;cursor:not-allowed}
+    .btn-outline{width:100%;padding:9px;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:transparent;color:var(--dim);font-size:.78rem;margin-top:8px;transition:border-color .2s,color .2s}
+    .btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+    .capi-bar{padding:11px 15px;border-radius:9px;margin-bottom:18px;display:flex;align-items:center;gap:9px;font-size:.78rem;font-weight:600}
+    .capi-ok{background:rgba(34,211,165,.08);border:1px solid rgba(34,211,165,.25);color:var(--green)}
+    .capi-err{background:rgba(247,89,89,.08);border:1px solid rgba(247,89,89,.25);color:var(--red)}
+    .capi-wait{background:rgba(247,194,68,.08);border:1px solid rgba(247,194,68,.25);color:var(--yellow)}
+    .log-item{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+    .log-item:last-child{border-bottom:none}
+    .log-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
+    .log-dot.ok{background:var(--green)}.log-dot.err{background:var(--red)}
+    .log-prod{font-size:.83rem;font-weight:600}
+    .log-meta{font-size:.72rem;color:var(--dim);margin-top:2px}
+    .log-val{font-size:.95rem;font-weight:700;color:var(--green);white-space:nowrap}
+    .pixel-note{background:rgba(79,110,247,.07);border:1px solid rgba(79,110,247,.2);border-radius:9px;padding:12px 15px;font-size:.76rem;color:var(--dim);line-height:1.55;margin-bottom:18px}
+    .pixel-note strong{color:var(--accent)}
+    .sale-total{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--border);margin-top:4px;font-size:.82rem}
+    .sale-total-val{font-weight:700;color:var(--green);font-size:1rem}
+
+    /* ── LOADING ── */
+    .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;gap:16px;color:var(--dim)}
+    .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ── ALERT ── */
+    .alert{padding:13px 18px;border-radius:10px;margin-bottom:20px;display:flex;gap:10px;align-items:flex-start;font-size:.8rem;line-height:1.5}
+    .alert-y{background:rgba(247,194,68,.07);border:1px solid rgba(247,194,68,.2);color:var(--yellow)}
+    .alert-g{background:rgba(34,211,165,.07);border:1px solid rgba(34,211,165,.2);color:var(--green)}
+
+    /* ── FOOTER ── */
+    footer{text-align:center;margin-top:48px;padding:16px;font-size:.72rem;color:var(--muted)}
+
+    canvas{max-width:100%}
+
+    /* ── SECTION TITLE ── */
+    .section{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:28px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+
+    /* ── WHATSAPP CARD ── */
+    .wa-card{background:var(--surface);border:1px solid rgba(37,211,102,.25);border-left:4px solid #25d366;border-radius:var(--radius);padding:20px;margin-bottom:20px}
+    .wa-card-title{font-size:.9rem;font-weight:700;color:#25d366;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+    .wa-kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:18px}
+    .wa-kpi{background:rgba(37,211,102,.06);border:1px solid rgba(37,211,102,.15);border-radius:10px;padding:14px 16px}
+    .wa-kpi-label{font-size:.65rem;color:#7c89ab;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+    .wa-kpi-val{font-size:1.5rem;font-weight:800;color:#25d366;line-height:1.1;margin-bottom:2px}
+    .wa-kpi-sub{font-size:.68rem;color:var(--muted)}
+    .wa-kpi.accent{background:rgba(79,110,247,.06);border-color:rgba(79,110,247,.2)}
+    .wa-kpi.accent .wa-kpi-val{color:var(--accent)}
+  </style>
+</head>
+<body>
+
+<div id="loading" class="loading">
+  <div class="spinner"></div>
+  <p>Carregando dados da Meta API…</p>
+</div>
+
+<div id="app" style="display:none">
+
+<nav class="topbar">
+  <div class="brand">
+    <div class="brand-icon">📊</div>
+    <div>
+      <h1>Meta Ads Dashboard</h1>
+      <p id="header-ts">Alef Câmara</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="chip chip-green" id="chip-spent"></span>
+    <span class="chip chip-blue" id="chip-camps"></span>
+    <span class="chip chip-yellow" id="chip-ig"></span>
+    <span id="refresh-ts" style="font-size:.7rem;color:var(--muted)"></span>
+    <button id="btn-refresh" onclick="triggerRefresh()" style="padding:5px 13px;border-radius:20px;font-size:.74rem;font-weight:600;cursor:pointer;background:transparent;border:1px solid var(--border);color:var(--dim);transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--dim)'">🔄 Atualizar</button>
+  </div>
+</nav>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <!-- Seletor de conta (aparece só quando há 2+ contas com dados) -->
+  <div id="account-row" class="account-row">
+    <span class="filter-label">Conta</span>
+    <div id="account-chips" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+  </div>
+  <span class="filter-label">Período</span>
+  <div class="filter-presets">
+    <button class="fp" data-preset="today">Hoje</button>
+    <button class="fp" data-preset="last_7d">7 dias</button>
+    <button class="fp" data-preset="this_month">Este mês</button>
+    <button class="fp" data-preset="last_30d">30 dias</button>
+    <button class="fp" data-preset="last_90d">90 dias</button>
+    <button class="fp active" data-preset="maximum">Máximo</button>
+    <button class="fp" data-preset="custom">Personalizado</button>
+  </div>
+  <div class="filter-sep"></div>
+  <div class="filter-custom" id="filter-custom">
+    <input type="date" id="f-since" title="De"/>
+    <span style="color:var(--muted);font-size:.75rem">até</span>
+    <input type="date" id="f-until" title="Até"/>
+    <button class="fp-apply" onclick="applyCustom()">Aplicar</button>
+  </div>
+  <div class="filter-loading" id="filter-loading">
+    <div class="mini-spin"></div> Buscando dados…
+  </div>
+  <span class="filter-period-tag" id="period-tag">Todo o período</span>
+</div>
+
+<div id="api-error-banner" style="display:none;background:rgba(247,89,89,.1);border:1px solid rgba(247,89,89,.3);border-radius:10px;padding:14px 20px;margin:14px 28px 0;font-size:.82rem;color:#f75959;line-height:1.6">
+  <strong>⚠️ Erro na API Meta — </strong><span id="api-error-msg"></span>
+</div>
+
+<div class="page">
+
+  <div style="margin-bottom:18px"></div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" data-tab="overview">📊 Visão Geral</button>
+    <button class="tab" data-tab="campaigns">📣 Campanhas</button>
+    <button class="tab" data-tab="trends">📈 Tendências</button>
+    <button class="tab" data-tab="instagram">📸 Instagram</button>
+    <button class="tab" data-tab="pages">📄 Páginas</button>
+    <button class="tab" data-tab="recs">💡 Recomendações</button>
+    <button class="tab" data-tab="vendas">💬 Registrar Venda</button>
+  </div>
+
+  <!-- ═══ OVERVIEW ═══ -->
+  <div id="tab-overview" class="tab-pane active">
+
+    <div class="kpi-strip" id="kpi-strip"></div>
+
+    <!-- WhatsApp summary card — visível só quando há campanhas WA -->
+    <div id="wa-summary-card" class="wa-card" style="display:none">
+      <div class="wa-card-title">💬 WhatsApp — Resumo Geral das Campanhas</div>
+      <div class="wa-kpi-strip" id="wa-kpi-strip"></div>
+      <div id="wa-table-wrap" style="overflow-x:auto"></div>
+    </div>
+
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">💸 Gasto Mensal</div>
+        <canvas id="ch-monthly-spend"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">📉 CTR & CPC por Mês</div>
+        <canvas id="ch-monthly-ctr"></canvas>
+      </div>
+    </div>
+
+    <div class="card card-full">
+      <div class="card-title">🏆 Top Campanhas por Gasto</div>
+      <div style="overflow-x:auto"><table class="tbl" id="tbl-top-camps"></table></div>
+    </div>
+
+  </div>
+
+  <!-- ═══ CAMPAIGNS ═══ -->
+  <div id="tab-campaigns" class="tab-pane">
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">🥇 Menor CPC (eficiência)</div>
+        <canvas id="ch-cpc-bar"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">👁️ Alcance por campanha</div>
+        <canvas id="ch-reach-bar"></canvas>
+      </div>
+    </div>
+    <div class="card card-full">
+      <div class="card-title">📋 Todas as campanhas — Métricas completas</div>
+      <div style="overflow-x:auto"><table class="tbl" id="tbl-all-camps"></table></div>
+    </div>
+  </div>
+
+
+  <!-- ═══ TRENDS ═══ -->
+  <div id="tab-trends" class="tab-pane">
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">📅 Impressões mensais</div>
+        <canvas id="ch-impressions"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">🖱️ Cliques mensais</div>
+        <canvas id="ch-clicks"></canvas>
+      </div>
+    </div>
+    <div class="card card-full">
+      <div class="card-title">📊 Distribuição de Gasto por Campanha</div>
+      <div style="max-width:500px;margin:0 auto"><canvas id="ch-spend-pie"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ═══ INSTAGRAM ═══ -->
+  <div id="tab-instagram" class="tab-pane">
+    <div class="section">📸 Contas Instagram Gerenciadas</div>
+    <div class="ig-grid" id="ig-grid"></div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">👥 Seguidores por conta</div>
+        <canvas id="ch-ig-followers"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">📝 Média de posts por conta</div>
+        <canvas id="ch-ig-posts"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ PAGES ═══ -->
+  <div id="tab-pages" class="tab-pane">
+    <div class="section">📄 Páginas Facebook</div>
+    <div style="overflow-x:auto">
+      <table class="tbl" id="tbl-pages"></table>
+    </div>
+  </div>
+
+  <!-- ═══ RECOMMENDATIONS ═══ -->
+  <div id="tab-recs" class="tab-pane">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-size:.95rem;font-weight:700;margin-bottom:4px">💡 Recomendações — Análise por IA</div>
+        <div id="recs-meta" style="font-size:.73rem;color:var(--muted)">Carregando…</div>
+      </div>
+      <button id="btn-gen-recs" onclick="gerarRecs()" style="padding:7px 16px;border-radius:20px;font-size:.76rem;font-weight:600;cursor:pointer;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">✨ Gerar agora</button>
+    </div>
+    <div id="rec-list" class="rec-list"></div>
+  </div>
+
+  <!-- ═══ VENDAS ═══ -->
+  <div id="tab-vendas" class="tab-pane">
+    <div class="section">💬 Registrar Venda via WhatsApp → Meta CAPI</div>
+
+    <div id="capi-bar" class="capi-bar capi-wait">⏳ Verificando conexão com Meta CAPI…</div>
+
+    <div class="sale-wrap">
+      <!-- FORM -->
+      <div class="card">
+        <div class="card-title">📦 Nova Venda Confirmada</div>
+
+        <div class="pixel-note">
+          <strong>Como funciona:</strong> Ao registrar aqui, o sistema envia um evento <strong>Purchase</strong> para o Pixel <code>672896704609252</code> via Conversions API. A Meta cruza o telefone do cliente com o clique no anúncio e atribui a compra à campanha correta.
+        </div>
+
+        <div class="form-group">
+          <label>Produto / Serviço *</label>
+          <input id="s-product" type="text" placeholder="Ex: Kit Essence Atrativos Premium"/>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Valor *</label>
+            <div class="vprefix"><span>R$</span>
+              <input id="s-value" type="number" placeholder="0,00" step="0.01" min="0.01"/>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Moeda</label>
+            <select id="s-currency"><option value="BRL" selected>BRL</option><option value="USD">USD</option></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Nome do Cliente</label>
+          <input id="s-name" type="text" placeholder="Maria Silva"/>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>WhatsApp (com DDD)</label>
+            <input id="s-phone" type="tel" placeholder="91 9 9999-9999"/>
+          </div>
+          <div class="form-group">
+            <label>E-mail (opcional)</label>
+            <input id="s-email" type="email" placeholder="email@exemplo.com"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Observações</label>
+          <textarea id="s-notes" rows="2" placeholder="Ex: pagou no pix, produto X…" style="resize:vertical"></textarea>
+        </div>
+
+        <button class="btn-sale" id="btn-sale" onclick="registrarVenda()">
+          💬 Registrar Venda & Enviar para Meta
+        </button>
+        <button class="btn-outline" onclick="testarCAPI()">🔧 Testar conexão CAPI</button>
+      </div>
+
+      <!-- LOG -->
+      <div class="card">
+        <div class="card-title">📋 Vendas de Hoje <span id="log-count" style="color:var(--muted);font-size:.75rem;font-weight:400"></span></div>
+        <div id="log-body" style="min-height:120px">
+          <div style="color:var(--muted);font-size:.8rem;padding:20px 0;text-align:center">Nenhuma venda registrada hoje.</div>
+        </div>
+        <div id="sale-total" class="sale-total" style="display:none">
+          <span style="color:var(--dim)">Total do dia</span>
+          <span class="sale-total-val" id="sale-total-val"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<footer id="footer-ts"></footer>
+</div><!-- /app -->
+
+<script>
+// ── TABS ────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ── UTILS ────────────────────────────────────────────────────────────────────
+const R = n => 'R$' + parseFloat(n||0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g,'.').replace(/,(\d{2})$/,',$1');
+const fmt = n => { n = parseInt(n||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); };
+const pct = n => parseFloat(n||0).toFixed(2)+'%';
+const COLORS = ['#4f6ef7','#7c5cfc','#22d3a5','#f7c244','#f75959','#38bdf8','#fb923c','#a78bfa','#f472b6','#34d399','#60a5fa','#e879f9'];
+
+Chart.defaults.color = '#7c89ab';
+Chart.defaults.borderColor = '#252b47';
+Chart.defaults.font.family = 'Segoe UI, system-ui, sans-serif';
+
+// mkChart e mkFilterChart são a mesma função — ambas destroem antes de criar
+const mkChart = (id, type, data, opts = {}) => {
+  if (activeCharts[id]) { activeCharts[id].destroy(); delete activeCharts[id]; }
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  activeCharts[id] = new Chart(canvas, { type, data, options: { responsive: true, plugins: { legend: { labels: { font: { size: 11 } } } }, ...opts } });
+};
+const mkFilterChart = mkChart; // alias — mantido por compatibilidade
+
+// ── LOAD DATA ────────────────────────────────────────────────────────────────
+fetch('/api/data')
+  .then(r => r.json())
+  .then(raw => {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('header-ts').textContent = 'Atualizado em ' + new Date(raw.timestamp).toLocaleString('pt-BR');
+    document.getElementById('footer-ts').textContent = `Dashboard gerado em ${new Date(raw.timestamp).toLocaleString('pt-BR')} • Meta Graph API v21.0`;
+
+    const mainAcc = raw.adAccounts?.find(a => !a.error && (a.insights_campaigns_max || []).length > 0);
+    if (mainAcc) currentAccountId = mainAcc.id;
+    buildAccountChips(raw.adAccounts);
+    const allCampIns = mainAcc?.insights_campaigns_max || [];
+    const monthly = mainAcc?.insights_monthly || [];
+    const pages = raw.pages || [];
+    const igPages = pages.filter(p => p.instagram);
+
+    allCampIns.sort((a, b) => parseFloat(b.spend||0) - parseFloat(a.spend||0));
+
+    // ── TOTALS ──────────────────────────────────────────────────────────────
+    const totalSpend = allCampIns.reduce((s, c) => s + parseFloat(c.spend||0), 0);
+    const totalImpressions = allCampIns.reduce((s, c) => s + parseInt(c.impressions||0), 0);
+    const totalClicks = allCampIns.reduce((s, c) => s + parseInt(c.clicks||0), 0);
+    const totalReach = allCampIns.reduce((s, c) => s + parseInt(c.reach||0), 0);
+    const avgCTR = totalImpressions > 0 ? (totalClicks / totalImpressions * 100) : 0;
+    const avgCPC = totalClicks > 0 ? (totalSpend / totalClicks) : 0;
+    const avgCPM = totalImpressions > 0 ? (totalSpend / totalImpressions * 1000) : 0;
+    const totalLinkClicks = allCampIns.reduce((s, c) => {
+      const lc = (c.actions||[]).find(a => a.action_type === 'link_click');
+      return s + parseInt(lc?.value || 0);
+    }, 0);
+
+    document.getElementById('chip-spent').textContent = `R$${totalSpend.toFixed(0)} investido`;
+    document.getElementById('chip-camps').textContent = allCampIns.length + ' campanhas';
+    document.getElementById('chip-ig').textContent = igPages.length + ' contas IG';
+
+    // ── KPIs ─────────────────────────────────────────────────────────────────
+    const kpis = [
+      { label: 'Total Gasto', val: R(totalSpend), sub: 'período máximo', ico: '💰', c: '#4f6ef7' },
+      { label: 'Impressões', val: fmt(totalImpressions), sub: 'total acumulado', ico: '👁️', c: '#7c5cfc' },
+      { label: 'Alcance', val: fmt(totalReach), sub: 'pessoas únicas', ico: '🌐', c: '#22d3a5' },
+      { label: 'Cliques', val: fmt(totalClicks), sub: fmt(totalLinkClicks) + ' link clicks', ico: '🖱️', c: '#38bdf8' },
+      { label: 'CTR Médio', val: pct(avgCTR), sub: 'benchmark: 0,9%', ico: '📊', c: avgCTR > 2 ? '#22d3a5' : '#f7c244' },
+      { label: 'CPC Médio', val: R(avgCPC), sub: 'custo por clique', ico: '💸', c: avgCPC < 1 ? '#22d3a5' : '#f75959' },
+      { label: 'CPM Médio', val: R(avgCPM), sub: 'custo por 1k imp.', ico: '📡', c: '#f7c244' },
+      { label: 'Campanhas', val: String(allCampIns.length), sub: mainAcc?.name || '', ico: '📣', c: '#fb923c' },
+    ];
+
+    document.getElementById('kpi-strip').innerHTML = kpis.map(k => `
+      <div class="kpi" style="--c:${k.c}">
+        <div class="kpi-ico">${k.ico}</div>
+        <div class="kpi-label">${k.label}</div>
+        <div class="kpi-val">${k.val}</div>
+        <div class="kpi-sub">${k.sub}</div>
+      </div>`).join('');
+
+    // ── TOP CAMPS TABLE + WA CARD ────────────────────────────────────────────
+    renderWACard(allCampIns);
+    renderTopTable(allCampIns.slice(0, 10));
+
+    // ── MONTHLY CHARTS ───────────────────────────────────────────────────────
+    const mLabels = monthly.map(m => m.date_start?.slice(0,7));
+    const mSpend  = monthly.map(m => parseFloat(m.spend||0));
+    const mCTR    = monthly.map(m => parseFloat(m.ctr||0));
+    const mCPC    = monthly.map(m => parseFloat(m.cpc||0));
+    const mImp    = monthly.map(m => parseInt(m.impressions||0));
+    const mClicks = monthly.map(m => parseInt(m.clicks||0));
+
+    mkChart('ch-monthly-spend', 'bar', {
+      labels: mLabels,
+      datasets: [{ label: 'Gasto (R$)', data: mSpend, backgroundColor: '#4f6ef7cc', borderColor: '#4f6ef7', borderWidth: 1, borderRadius: 5 }]
+    }, { plugins: { legend: { display: false } } });
+
+    mkChart('ch-monthly-ctr', 'line', {
+      labels: mLabels,
+      datasets: [
+        { label: 'CTR (%)', data: mCTR, borderColor: '#22d3a5', backgroundColor: 'rgba(34,211,165,.1)', fill: true, tension: .3, yAxisID: 'y' },
+        { label: 'CPC (R$)', data: mCPC, borderColor: '#f7c244', backgroundColor: 'rgba(247,194,68,.1)', fill: false, tension: .3, yAxisID: 'y2' },
+      ]
+    }, { scales: { y: { position: 'left', title: { display: true, text: 'CTR (%)' } }, y2: { position: 'right', title: { display: true, text: 'CPC (R$)' }, grid: { drawOnChartArea: false } } } });
+
+    // ── ALL CAMPS TABLE ──────────────────────────────────────────────────────
+    renderAllTable(allCampIns);
+
+    // ── CPC BAR CHART ────────────────────────────────────────────────────────
+    const sortedCPC = [...allCampIns].filter(c => parseFloat(c.spend||0) > 50).sort((a,b) => parseFloat(a.cpc||0) - parseFloat(b.cpc||0)).slice(0, 8);
+    mkChart('ch-cpc-bar', 'bar', {
+      labels: sortedCPC.map(c => c.campaign_name.split(' ').slice(0,3).join(' ')),
+      datasets: [{ label: 'CPC (R$)', data: sortedCPC.map(c => parseFloat(c.cpc||0)), backgroundColor: sortedCPC.map((_, i) => COLORS[i] + 'cc'), borderRadius: 5 }]
+    }, { plugins: { legend: { display: false } }, indexAxis: 'y' });
+
+    // ── REACH BAR ────────────────────────────────────────────────────────────
+    const topReach = [...allCampIns].sort((a,b) => parseInt(b.reach||0) - parseInt(a.reach||0)).slice(0, 8);
+    mkChart('ch-reach-bar', 'bar', {
+      labels: topReach.map(c => c.campaign_name.split(' ').slice(0,3).join(' ')),
+      datasets: [{ label: 'Alcance', data: topReach.map(c => parseInt(c.reach||0)), backgroundColor: COLORS.map(c => c + 'cc'), borderRadius: 5 }]
+    }, { plugins: { legend: { display: false } }, indexAxis: 'y' });
+
+    // ── IMPRESSIONS + CLICKS CHARTS ──────────────────────────────────────────
+    mkChart('ch-impressions', 'line', {
+      labels: mLabels,
+      datasets: [{ label: 'Impressões', data: mImp, borderColor: '#4f6ef7', backgroundColor: 'rgba(79,110,247,.1)', fill: true, tension: .3 }]
+    });
+
+    mkChart('ch-clicks', 'line', {
+      labels: mLabels,
+      datasets: [{ label: 'Cliques', data: mClicks, borderColor: '#22d3a5', backgroundColor: 'rgba(34,211,165,.1)', fill: true, tension: .3 }]
+    });
+
+    // ── SPEND PIE ────────────────────────────────────────────────────────────
+    mkChart('ch-spend-pie', 'doughnut', {
+      labels: allCampIns.map(c => c.campaign_name.split(' ').slice(0,3).join(' ')),
+      datasets: [{ data: allCampIns.map(c => parseFloat(c.spend||0)), backgroundColor: COLORS.map(c => c + 'cc'), borderColor: COLORS, borderWidth: 2 }]
+    });
+
+    // ── INSTAGRAM ────────────────────────────────────────────────────────────
+    const igGrid = document.getElementById('ig-grid');
+    igPages.sort((a,b) => (b.instagram?.followers_count||0) - (a.instagram?.followers_count||0));
+
+    igPages.forEach((p, i) => {
+      const ig = p.instagram;
+      const ratio = ig.media?.length > 0 ? ((ig.follows_count||0) / (ig.followers_count||1) * 100).toFixed(1) : null;
+      igGrid.innerHTML += `
+        <div class="ig-card">
+          <div class="ig-avatar">📷</div>
+          <div class="ig-name">${ig.name || p.name}</div>
+          <div class="ig-handle">@${ig.username || '—'}</div>
+          <div class="ig-stats">
+            <div class="ig-stat">
+              <div class="ig-stat-label">Seguidores</div>
+              <div class="ig-stat-val" style="color:${COLORS[i%COLORS.length]}">${fmt(ig.followers_count||0)}</div>
+            </div>
+            <div class="ig-stat">
+              <div class="ig-stat-label">Posts</div>
+              <div class="ig-stat-val">${fmt(ig.media_count||0)}</div>
+            </div>
+            <div class="ig-stat">
+              <div class="ig-stat-label">Seguindo</div>
+              <div class="ig-stat-val">${fmt(ig.follows_count||0)}</div>
+            </div>
+            <div class="ig-stat">
+              <div class="ig-stat-label">Coletados</div>
+              <div class="ig-stat-val">${(ig.media||[]).length}</div>
+            </div>
+          </div>
+          ${ig.biography ? `<div style="font-size:.7rem;color:var(--muted);margin-top:10px;line-height:1.4">${ig.biography.slice(0,80)}…</div>` : ''}
+        </div>`;
+    });
+
+    const igLabels = igPages.map(p => '@' + (p.instagram?.username || p.name.split(' ')[0]));
+    const igFollowers = igPages.map(p => p.instagram?.followers_count || 0);
+    const igPostCount = igPages.map(p => p.instagram?.media_count || 0);
+
+    mkChart('ch-ig-followers', 'bar', {
+      labels: igLabels,
+      datasets: [{ label: 'Seguidores', data: igFollowers, backgroundColor: COLORS.map(c=>c+'cc'), borderRadius: 5 }]
+    }, { plugins: { legend: { display: false } }, indexAxis: 'y' });
+
+    mkChart('ch-ig-posts', 'bar', {
+      labels: igLabels,
+      datasets: [{ label: 'Posts', data: igPostCount, backgroundColor: '#7c5cfccc', borderRadius: 5 }]
+    }, { plugins: { legend: { display: false } }, indexAxis: 'y' });
+
+    // ── PAGES TABLE ──────────────────────────────────────────────────────────
+    const sortedPages = [...pages].sort((a, b) => (b.fan_count || 0) - (a.fan_count || 0));
+    document.getElementById('tbl-pages').innerHTML = `
+      <thead><tr>
+        <th>#</th><th>Página</th><th class="num">Fãs</th><th class="num">Seguidores</th>
+        <th class="num">Posts colet.</th><th>Instagram</th>
+      </tr></thead>
+      <tbody>${sortedPages.map((p, i) => `<tr>
+        <td style="color:var(--muted)">${i+1}</td>
+        <td>${p.name}</td>
+        <td class="num">${fmt(p.fan_count)}</td>
+        <td class="num">${fmt(p.followers_count)}</td>
+        <td class="num">${p.posts?.length || 0}</td>
+        <td style="font-size:.75rem;color:${p.instagram ? 'var(--green)' : 'var(--muted)'}">${p.instagram ? '✓ @' + p.instagram.username : '—'}</td>
+      </tr>`).join('')}</tbody>`;
+
+    // ── RECOMMENDATIONS ──────────────────────────────────────────────────────
+    loadRecs(allCampIns, monthly, totalSpend, igPages);
+
+  // ── ABA VENDAS — carregar log ao abrir ──────────────────────────────────────
+  document.querySelector('[data-tab="vendas"]').addEventListener('click', () => {
+    testarCAPI();
+    carregarLog();
+  });
+
+  // ── Auto-aplicar last_30d ao carregar para mostrar dados recentes ────────────
+  const btn30d = document.querySelector('.fp[data-preset="last_30d"]');
+  if (btn30d) {
+    document.querySelectorAll('.fp[data-preset]').forEach(b => b.classList.remove('active'));
+    btn30d.classList.add('active');
+  }
+  loadInsights({ preset: 'last_30d' });
+
+  })
+  .catch(err => {
+    document.getElementById('loading').innerHTML = `
+      <div style="text-align:center;padding:40px;color:var(--red)">
+        <div style="font-size:2.5rem;margin-bottom:12px">⚠️</div>
+        <strong>Erro ao carregar dados</strong><br>
+        <span style="font-size:.8rem;color:var(--dim)">${err.message}</span><br><br>
+        <span style="font-size:.75rem;color:var(--muted)">Certifique-se que o servidor está rodando:<br><code>npm run dev</code></span>
+      </div>`;
+  });
+// ── FILTROS ───────────────────────────────────────────────────────────────────
+const PRESET_LABELS = {
+  today: 'Hoje', last_7d: 'Últimos 7 dias', this_month: 'Este mês',
+  last_30d: 'Últimos 30 dias', last_90d: 'Últimos 90 dias', maximum: 'Todo o período',
+};
+
+let activeCharts = {};  // guarda instâncias para destruir antes de recriar
+let currentAccountId = '226773313101799'; // conta padrão — Essence Atrativos 2
+
+function destroyCharts(...ids) {
+  ids.forEach(id => { if (activeCharts[id]) { activeCharts[id].destroy(); delete activeCharts[id]; } });
+}
+
+// Preset buttons
+document.querySelectorAll('.fp[data-preset]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.fp[data-preset]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const preset = btn.dataset.preset;
+    if (preset === 'custom') {
+      document.getElementById('filter-custom').classList.add('show');
+      return;
+    }
+    document.getElementById('filter-custom').classList.remove('show');
+    loadInsights({ preset });
+  });
+});
+
+function applyCustom() {
+  const since = document.getElementById('f-since').value;
+  const until = document.getElementById('f-until').value;
+  if (!since || !until) { toast('Selecione as duas datas', false); return; }
+  if (since > until) { toast('Data inicial deve ser anterior à final', false); return; }
+  loadInsights({ since, until });
+}
+
+async function loadInsights({ preset, since, until }) {
+  const loading = document.getElementById('filter-loading');
+  const tag = document.getElementById('period-tag');
+  loading.classList.add('show');
+
+  let url = '/api/insights?';
+  if (since && until) {
+    url += `since=${since}&until=${until}`;
+    tag.textContent = `${fmtDateStr(since)} → ${fmtDateStr(until)}`;
+  } else {
+    url += `preset=${preset}`;
+    tag.textContent = PRESET_LABELS[preset] || preset;
+  }
+  if (currentAccountId) url += `&accountId=${currentAccountId}`;
+
+  const banner = document.getElementById('api-error-banner');
+  const bannerMsg = document.getElementById('api-error-msg');
+  try {
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (data.error) {
+      const isToken = /Session has expired|OAuthException|access token/i.test(data.error);
+      const msg = isToken
+        ? 'Token Meta expirado. Gere um novo token em business.facebook.com e atualize META_TOKEN no servidor.'
+        : data.error;
+      if (banner) { banner.style.display = 'block'; bannerMsg.textContent = msg; }
+      toast('⚠️ ' + msg, false);
+      return;
+    }
+    if (banner) banner.style.display = 'none';
+    renderInsights(data);
+  } catch (e) {
+    if (banner) { banner.style.display = 'block'; bannerMsg.textContent = e.message; }
+    toast('⚠️ ' + e.message, false);
+  } finally {
+    loading.classList.remove('show');
+  }
+}
+
+function fmtDateStr(s) {
+  const [y, m, d] = s.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+// ── Helpers WhatsApp ──────────────────────────────────────────────────────────
+function getAction(camp, type) {
+  return parseInt((camp.actions || []).find(a => a.action_type === type)?.value || 0);
+}
+
+function waConvs(camp) {
+  return getAction(camp, 'onsite_conversion.messaging_conversation_started_7d');
+}
+
+function waReplies(camp) {
+  return getAction(camp, 'onsite_conversion.messaging_first_reply');
+}
+
+function renderWACard(camps) {
+  const waCamps = camps.filter(c => waConvs(c) > 0);
+  const card = document.getElementById('wa-summary-card');
+  if (!card) return;
+
+  if (waCamps.length === 0) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+
+  const totalConvs    = waCamps.reduce((s, c) => s + waConvs(c), 0);
+  const totalReplies  = waCamps.reduce((s, c) => s + waReplies(c), 0);
+  const totalWaSpend  = waCamps.reduce((s, c) => s + parseFloat(c.spend || 0), 0);
+  const allSpend      = camps.reduce((s, c) => s + parseFloat(c.spend || 0), 0);
+  const costPerConv   = totalConvs > 0 ? totalWaSpend / totalConvs : 0;
+  const msgsPerConv   = totalConvs > 0 ? totalReplies / totalConvs : 0;
+  const pctWa         = allSpend > 0 ? totalWaSpend / allSpend * 100 : 0;
+
+  document.getElementById('wa-kpi-strip').innerHTML = `
+    <div class="wa-kpi">
+      <div class="wa-kpi-label">Campanhas WA</div>
+      <div class="wa-kpi-val">${waCamps.length}</div>
+      <div class="wa-kpi-sub">com conversas registradas</div>
+    </div>
+    <div class="wa-kpi">
+      <div class="wa-kpi-label">Conversas Iniciadas</div>
+      <div class="wa-kpi-val">${fmt(totalConvs)}</div>
+      <div class="wa-kpi-sub">atribuição 7 dias</div>
+    </div>
+    <div class="wa-kpi">
+      <div class="wa-kpi-label">Custo / Conversa</div>
+      <div class="wa-kpi-val">${R(costPerConv)}</div>
+      <div class="wa-kpi-sub">gasto ÷ conversas</div>
+    </div>
+    <div class="wa-kpi">
+      <div class="wa-kpi-label">Msgs / Conversa</div>
+      <div class="wa-kpi-val">${msgsPerConv.toFixed(1)}</div>
+      <div class="wa-kpi-sub">respostas ÷ conversas</div>
+    </div>
+    <div class="wa-kpi accent">
+      <div class="wa-kpi-label">Gasto Total WA</div>
+      <div class="wa-kpi-val">${R(totalWaSpend)}</div>
+      <div class="wa-kpi-sub">${pctWa.toFixed(0)}% do gasto total</div>
+    </div>`;
+
+  const maxConvs = Math.max(...waCamps.map(c => waConvs(c)), 1);
+  document.getElementById('wa-table-wrap').innerHTML = `
+    <table class="tbl">
+      <thead><tr>
+        <th>Campanha</th>
+        <th class="num">Gasto</th>
+        <th class="num">Conversas</th>
+        <th class="num">Custo/Conv</th>
+        <th class="num">Respostas</th>
+        <th class="num">Msgs/Conv</th>
+        <th class="num">CTR</th>
+      </tr></thead>
+      <tbody>${waCamps.sort((a, b) => waConvs(b) - waConvs(a)).map(c => {
+        const convs   = waConvs(c);
+        const replies = waReplies(c);
+        const spend   = parseFloat(c.spend || 0);
+        const cpc     = convs > 0 ? spend / convs : 0;
+        const mpc     = convs > 0 ? replies / convs : 0;
+        const ctr     = parseFloat(c.ctr || 0);
+        const barW    = Math.round(convs / maxConvs * 100);
+        return `<tr>
+          <td>
+            <div class="name-cell" title="${c.campaign_name}" style="font-size:.8rem;font-weight:600">${c.campaign_name}</div>
+            <div class="spend-bar" style="margin-top:4px"><div class="spend-fill" style="width:${barW}%;background:#25d366aa"></div></div>
+          </td>
+          <td class="num">${R(spend)}</td>
+          <td class="num"><strong style="color:#25d366">${fmt(convs)}</strong></td>
+          <td class="num"><span class="${cpc <= 5 ? 'pill pill-g' : cpc <= 15 ? 'pill pill-y' : 'pill pill-r'}">${R(cpc)}</span></td>
+          <td class="num">${fmt(replies)}</td>
+          <td class="num">${mpc.toFixed(1)}</td>
+          <td class="num"><span class="${ctr >= 4 ? 'pill pill-g' : ctr >= 2 ? 'pill pill-y' : 'pill pill-r'}">${pct(ctr)}</span></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+function renderInsights(data) {
+  const camps = (data.campaigns || []).sort((a, b) => parseFloat(b.spend || 0) - parseFloat(a.spend || 0));
+  const daily = data.daily || [];
+
+  // Atualizar nome da conta ativa no topbar
+  const activeAccountBtn = document.querySelector('[data-account].active');
+  const accountName = activeAccountBtn?.textContent?.trim() || '';
+  if (accountName) {
+    const chipCamps = document.getElementById('chip-camps');
+    if (chipCamps) chipCamps.textContent = camps.length + ' campanhas · ' + accountName;
+  }
+
+  // ── recalcular totais ────────────────────────────────────────────────────
+  const totalSpend       = camps.reduce((s, c) => s + parseFloat(c.spend || 0), 0);
+  const totalImpressions = camps.reduce((s, c) => s + parseInt(c.impressions || 0), 0);
+  const totalClicks      = camps.reduce((s, c) => s + parseInt(c.clicks || 0), 0);
+  const totalReach       = camps.reduce((s, c) => s + parseInt(c.reach || 0), 0);
+  const avgCTR = totalImpressions > 0 ? (totalClicks / totalImpressions * 100) : 0;
+  const avgCPC = totalClicks > 0 ? (totalSpend / totalClicks) : 0;
+  const avgCPM = totalImpressions > 0 ? (totalSpend / totalImpressions * 1000) : 0;
+  const totalLinkClicks = camps.reduce((s, c) => {
+    const lc = (c.actions || []).find(a => a.action_type === 'link_click');
+    return s + parseInt(lc?.value || 0);
+  }, 0);
+
+  // ── atualizar KPIs ───────────────────────────────────────────────────────
+  const kpiDefs = [
+    { val: R(totalSpend), sub: `${camps.length} campanhas` },
+    { val: fmt(totalImpressions), sub: '—' },
+    { val: fmt(totalReach), sub: '—' },
+    { val: fmt(totalClicks), sub: fmt(totalLinkClicks) + ' link clicks' },
+    { val: pct(avgCTR), sub: 'benchmark: 0,9%' },
+    { val: R(avgCPC), sub: 'custo por clique' },
+    { val: R(avgCPM), sub: 'custo por 1k imp.' },
+    { val: String(camps.length), sub: data.period?.preset || 'filtrado' },
+  ];
+  document.querySelectorAll('.kpi').forEach((el, i) => {
+    if (!kpiDefs[i]) return;
+    el.querySelector('.kpi-val').textContent = kpiDefs[i].val;
+    el.querySelector('.kpi-sub').textContent = kpiDefs[i].sub;
+  });
+
+  // ── tabelas e card WA ─────────────────────────────────────────────────────
+  renderWACard(camps);
+  renderTopTable(camps.slice(0, 10));
+  renderAllTable(camps);
+  renderCPCChart(camps);
+  renderReachChart(camps);
+
+  // ── gráficos de tendência (daily) ─────────────────────────────────────────
+  const dLabels = daily.map(d => d.date_start?.slice(5));   // MM-DD
+  const dSpend  = daily.map(d => parseFloat(d.spend || 0));
+  const dCTR    = daily.map(d => parseFloat(d.ctr || 0));
+  const dCPC    = daily.map(d => parseFloat(d.cpc || 0));
+  const dImp    = daily.map(d => parseInt(d.impressions || 0));
+  const dClk    = daily.map(d => parseInt(d.clicks || 0));
+
+  mkFilterChart('ch-monthly-spend', 'bar', {
+    labels: dLabels,
+    datasets: [{ label: 'Gasto (R$)', data: dSpend, backgroundColor: '#4f6ef7cc', borderColor: '#4f6ef7', borderWidth: 1, borderRadius: 4 }]
+  }, { plugins: { legend: { display: false } } });
+
+  mkFilterChart('ch-monthly-ctr', 'line', {
+    labels: dLabels,
+    datasets: [
+      { label: 'CTR (%)', data: dCTR, borderColor: '#22d3a5', backgroundColor: 'rgba(34,211,165,.1)', fill: true, tension: .3, yAxisID: 'y' },
+      { label: 'CPC (R$)', data: dCPC, borderColor: '#f7c244', backgroundColor: 'rgba(247,194,68,.08)', fill: false, tension: .3, yAxisID: 'y2' },
+    ]
+  }, { scales: { y: { position: 'left' }, y2: { position: 'right', grid: { drawOnChartArea: false } } } });
+
+  mkFilterChart('ch-impressions', 'line', {
+    labels: dLabels,
+    datasets: [{ label: 'Impressões', data: dImp, borderColor: '#4f6ef7', backgroundColor: 'rgba(79,110,247,.1)', fill: true, tension: .3 }]
+  });
+
+  mkFilterChart('ch-clicks', 'line', {
+    labels: dLabels,
+    datasets: [{ label: 'Cliques', data: dClk, borderColor: '#22d3a5', backgroundColor: 'rgba(34,211,165,.1)', fill: true, tension: .3 }]
+  });
+
+  mkFilterChart('ch-spend-pie', 'doughnut', {
+    labels: camps.map(c => c.campaign_name.split(' ').slice(0, 3).join(' ')),
+    datasets: [{ data: camps.map(c => parseFloat(c.spend || 0)), backgroundColor: COLORS.map(c => c + 'cc'), borderColor: COLORS, borderWidth: 2 }]
+  });
+}
+
+function renderTopTable(camps) {
+  const maxSpend = parseFloat(camps[0]?.spend || 1);
+  const hasWA = camps.some(c => waConvs(c) > 0);
+  const tbody = `
+    <thead><tr>
+      <th>#</th><th>Campanha</th><th class="num">Gasto</th><th class="num">Impressões</th>
+      <th class="num">Alcance</th><th class="num">Cliques</th><th class="num">CTR</th><th class="num">CPC</th><th class="num">CPM</th>
+      ${hasWA ? '<th class="num" style="color:#25d366">Conversas 💬</th><th class="num" style="color:#25d366">Custo/Conv</th><th class="num" style="color:#25d366">Msgs/Conv</th>' : ''}
+    </tr></thead>
+    <tbody>${camps.map((c, i) => {
+      const spend = parseFloat(c.spend || 0);
+      const ctr   = parseFloat(c.ctr || 0);
+      const cpc   = parseFloat(c.cpc || 0);
+      const convs   = waConvs(c);
+      const replies = waReplies(c);
+      const cpcConv = convs > 0 ? spend / convs : 0;
+      const mpc     = convs > 0 ? replies / convs : 0;
+      return `<tr>
+        <td style="color:var(--muted)">${i + 1}</td>
+        <td><div class="name-cell" title="${c.campaign_name}">${c.campaign_name}</div>
+          <div class="spend-bar"><div class="spend-fill" style="width:${Math.round(spend / maxSpend * 100)}%"></div></div></td>
+        <td class="num">${R(spend)}</td>
+        <td class="num">${fmt(c.impressions)}</td>
+        <td class="num">${fmt(c.reach)}</td>
+        <td class="num">${fmt(c.clicks)}</td>
+        <td class="num"><span class="${ctr >= 4 ? 'pill pill-g' : ctr >= 2 ? 'pill pill-y' : 'pill pill-r'}">${pct(ctr)}</span></td>
+        <td class="num"><span class="${cpc <= 0.5 ? 'pill pill-g' : cpc <= 1.5 ? 'pill pill-y' : 'pill pill-r'}">${R(cpc)}</span></td>
+        <td class="num">${R(c.cpm)}</td>
+        ${hasWA ? `
+          <td class="num">${convs > 0 ? `<strong style="color:#25d366">${fmt(convs)}</strong>` : '<span style="color:var(--muted)">—</span>'}</td>
+          <td class="num">${convs > 0 ? `<span class="${cpcConv <= 5 ? 'pill pill-g' : cpcConv <= 15 ? 'pill pill-y' : 'pill pill-r'}">${R(cpcConv)}</span>` : '—'}</td>
+          <td class="num">${convs > 0 ? mpc.toFixed(1) : '—'}</td>` : ''}
+      </tr>`;
+    }).join('')}</tbody>`;
+  const el = document.getElementById('tbl-top-camps');
+  if (el) el.innerHTML = tbody;
+}
+
+function renderAllTable(camps) {
+  const el = document.getElementById('tbl-all-camps');
+  if (!el) return;
+  const hasWA = camps.some(c => waConvs(c) > 0);
+  el.innerHTML = `
+    <thead><tr>
+      <th>#</th><th>Campanha</th><th class="num">Gasto</th><th class="num">Alcance</th>
+      <th class="num">Impressões</th><th class="num">Cliques</th><th class="num">CTR</th>
+      <th class="num">CPC</th><th class="num">CPM</th><th class="num">Link Clicks</th><th class="num">Freq.</th>
+      ${hasWA ? '<th class="num" style="color:#25d366">Conversas 💬</th><th class="num" style="color:#25d366">Custo/Conv</th><th class="num" style="color:#25d366">Msgs/Conv</th>' : ''}
+    </tr></thead>
+    <tbody>${camps.map((c, i) => {
+      const ctr     = parseFloat(c.ctr || 0);
+      const cpc     = parseFloat(c.cpc || 0);
+      const lc      = (c.actions || []).find(a => a.action_type === 'link_click');
+      const convs   = waConvs(c);
+      const replies = waReplies(c);
+      const cpcConv = convs > 0 ? parseFloat(c.spend || 0) / convs : 0;
+      const mpc     = convs > 0 ? replies / convs : 0;
+      return `<tr>
+        <td style="color:var(--muted);font-size:.75rem">${i + 1}</td>
+        <td><div class="name-cell" title="${c.campaign_name}" style="font-size:.78rem">${c.campaign_name}</div></td>
+        <td class="num">${R(c.spend)}</td>
+        <td class="num">${fmt(c.reach)}</td>
+        <td class="num">${fmt(c.impressions)}</td>
+        <td class="num">${fmt(c.clicks)}</td>
+        <td class="num"><span class="${ctr >= 4 ? 'pill pill-g' : ctr >= 2 ? 'pill pill-y' : 'pill pill-r'}">${pct(ctr)}</span></td>
+        <td class="num"><span class="${cpc <= 0.5 ? 'pill pill-g' : cpc <= 1 ? 'pill pill-y' : 'pill pill-r'}">${R(cpc)}</span></td>
+        <td class="num">${R(c.cpm)}</td>
+        <td class="num">${fmt(lc?.value || 0)}</td>
+        <td class="num">${parseFloat(c.frequency || 0).toFixed(2)}</td>
+        ${hasWA ? `
+          <td class="num">${convs > 0 ? `<strong style="color:#25d366">${fmt(convs)}</strong>` : '<span style="color:var(--muted)">—</span>'}</td>
+          <td class="num">${convs > 0 ? `<span class="${cpcConv <= 5 ? 'pill pill-g' : cpcConv <= 15 ? 'pill pill-y' : 'pill pill-r'}">${R(cpcConv)}</span>` : '—'}</td>
+          <td class="num">${convs > 0 ? mpc.toFixed(1) : '—'}</td>` : ''}
+      </tr>`;
+    }).join('')}</tbody>`;
+}
+
+function renderCPCChart(camps) {
+  const sorted = [...camps].filter(c => parseFloat(c.spend || 0) > 10).sort((a, b) => parseFloat(a.cpc || 0) - parseFloat(b.cpc || 0)).slice(0, 8);
+  mkFilterChart('ch-cpc-bar', 'bar', {
+    labels: sorted.map(c => c.campaign_name.split(' ').slice(0, 3).join(' ')),
+    datasets: [{ label: 'CPC (R$)', data: sorted.map(c => parseFloat(c.cpc || 0)), backgroundColor: sorted.map((_, i) => COLORS[i] + 'cc'), borderRadius: 5 }]
+  }, { plugins: { legend: { display: false } }, indexAxis: 'y' });
+}
+
+function renderReachChart(camps) {
+  const sorted = [...camps].sort((a, b) => parseInt(b.reach || 0) - parseInt(a.reach || 0)).slice(0, 8);
+  mkFilterChart('ch-reach-bar', 'bar', {
+    labels: sorted.map(c => c.campaign_name.split(' ').slice(0, 3).join(' ')),
+    datasets: [{ label: 'Alcance', data: sorted.map(c => parseInt(c.reach || 0)), backgroundColor: COLORS.map(c => c + 'cc'), borderRadius: 5 }]
+  }, { plugins: { legend: { display: false } }, indexAxis: 'y' });
+}
+
+// ── VENDAS ───────────────────────────────────────────────────────────────────
+const fmtR = v => 'R$ ' + parseFloat(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+// ── Recomendações ─────────────────────────────────────────────────────────────
+const PRIO_COLOR = { 'CRÍTICO': '#f75959', 'ALTO': '#f7c244', 'MÉDIO': '#4f6ef7', 'BAIXO': '#22d3a5' };
+
+function renderRecList(recs) {
+  const el = document.getElementById('rec-list');
+  if (!el) return;
+  if (!recs || recs.length === 0) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:.82rem;padding:20px 0">Nenhuma recomendação disponível.</div>';
+    return;
+  }
+  el.innerHTML = recs.map(r => {
+    const color = PRIO_COLOR[r.prio] || PRIO_COLOR[r.prioridade] || 'var(--accent)';
+    const prio  = r.prio || r.prioridade || '';
+    const body  = r.corpo || r.body || '';
+    const action = r.acao || r.action || '';
+    return `<div class="rec" style="--c:${color}">
+      <div class="rec-hdr">
+        <span>${r.ico || '💡'}</span>
+        <span class="rec-title">${r.titulo || r.title || ''}</span>
+        <span class="rec-priority">${prio}</span>
+      </div>
+      <div class="rec-body">${body}</div>
+      ${action ? `<div class="rec-action">${action}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function buildFallbackRecs(camps, monthly, totalSpend, igPages) {
+  const recs = [];
+
+  const highCTR = camps.filter(c => parseFloat(c.ctr||0) >= 5 && parseFloat(c.spend||0) > 100);
+  if (highCTR.length > 0) recs.push({
+    ico: '🚀', prio: 'ALTO', titulo: `Escalar campanhas com CTR acima de 5%`,
+    corpo: `${highCTR.map(c => `"${c.campaign_name.split(' ').slice(0,4).join(' ')}" (CTR ${pct(c.ctr)}, CPC ${R(c.cpc)})`).join('; ')}. Essas campanhas performam acima da média.`,
+    acao: '→ Aumente o orçamento em 20–30% e monitore por 72h'
+  });
+
+  const highCPC = camps.filter(c => parseFloat(c.cpc||0) > 0.8 && parseFloat(c.spend||0) > 50);
+  if (highCPC.length > 0) recs.push({
+    ico: '⚠️', prio: 'MÉDIO', titulo: `CPC alto em ${highCPC.length} campanha(s)`,
+    corpo: `${highCPC.map(c => `"${c.campaign_name.split(' ').slice(0,4).join(' ')}" — CPC ${R(c.cpc)}`).join('; ')}. Acima de R$1,00 pode indicar público saturado.`,
+    acao: '→ Revise frequência (>3x = saturação) ou atualize o criativo'
+  });
+
+  const totalPurchases = camps.reduce((s, c) => {
+    const p = (c.actions||[]).find(a => a.action_type === 'purchase' || a.action_type === 'omni_purchase');
+    return s + parseInt(p?.value || 0);
+  }, 0);
+  if (totalPurchases === 0) recs.push({
+    ico: '🔥', prio: 'CRÍTICO', titulo: 'Pixel não registra compras',
+    corpo: `R$${totalSpend.toFixed(0)} investidos sem ZERO conversões rastreadas em ${camps.length} campanhas. ROAS real impossível de calcular.`,
+    acao: '→ Verifique instalação do Pixel e use a aba "Registrar Venda" para enviar eventos via CAPI'
+  });
+
+  if (monthly.length >= 2) {
+    const peakM = monthly.reduce((a, b) => parseFloat(a.spend||0) > parseFloat(b.spend||0) ? a : b);
+    recs.push({
+      ico: '📈', prio: 'BAIXO', titulo: `Pico em ${peakM.date_start?.slice(0,7)}: ${R(peakM.spend)}`,
+      corpo: `Mês de maior gasto com CTR ${pct(peakM.ctr)} e CPC ${R(peakM.cpc)}. Analise quais campanhas estavam ativas.`,
+      acao: '→ Replique a estratégia desse mês nos próximos períodos'
+    });
+  }
+
+  const largestIG = igPages && igPages.length > 0
+    ? igPages.reduce((a, b) => (a.instagram?.followers_count||0) > (b.instagram?.followers_count||0) ? a : b)
+    : null;
+  if (largestIG?.instagram) {
+    const ig = largestIG.instagram;
+    recs.push({
+      ico: '📸', prio: 'BAIXO', titulo: `@${ig.username}: ${fmt(ig.followers_count)} seguidores`,
+      corpo: `Maior conta IG gerenciada. ${ig.media_count} posts totais.`,
+      acao: '→ Crie Público Personalizado dessa conta para retargeting'
+    });
+  }
+
+  return recs;
+}
+
+async function loadRecs(camps, monthly, totalSpend, igPages) {
+  const metaEl = document.getElementById('recs-meta');
+  try {
+    const data = await fetch('/api/recs').then(r => r.json());
+
+    if (data.recs && data.recs.length > 0) {
+      const d = new Date(data.generated_at);
+      const age = Math.round((Date.now() - d) / 3600000);
+      if (metaEl) metaEl.innerHTML = `✨ Geradas por IA em ${d.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} · há ${age < 1 ? '<1' : age}h · ${data.tokens_in || '?'} tokens`;
+      renderRecList(data.recs);
+    } else {
+      if (metaEl) metaEl.textContent = 'Recomendações automáticas — configure ANTHROPIC_API_KEY para análise por IA';
+      renderRecList(buildFallbackRecs(camps, monthly, totalSpend, igPages));
+    }
+  } catch {
+    if (metaEl) metaEl.textContent = 'Usando recomendações baseadas em regras';
+    renderRecList(buildFallbackRecs(camps, monthly, totalSpend, igPages));
+  }
+}
+
+async function gerarRecs() {
+  const btn = document.getElementById('btn-gen-recs');
+  const metaEl = document.getElementById('recs-meta');
+  btn.disabled = true;
+  btn.textContent = '⏳ Gerando…';
+  if (metaEl) metaEl.textContent = 'Buscando dados e analisando com IA…';
+  try {
+    const r = await fetch('/api/recs/generate', { method: 'POST' });
+    const d = await r.json();
+    if (d.ok && d.data?.recs) {
+      renderRecList(d.data.recs);
+      const gen = new Date(d.data.generated_at);
+      if (metaEl) metaEl.innerHTML = `✨ Geradas agora em ${gen.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} · ${d.data.tokens_in || '?'} tokens`;
+      toast(`✓ ${d.count} recomendações geradas!`, true);
+    } else {
+      const msg = d.msg || 'Erro desconhecido';
+      if (metaEl) metaEl.textContent = '✗ ' + msg;
+      toast('✗ ' + (msg.includes('ANTHROPIC_API_KEY') ? 'Configure a variável ANTHROPIC_API_KEY no servidor' : msg), false);
+    }
+  } catch (e) {
+    toast('✗ Erro: ' + e.message, false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✨ Gerar agora';
+  }
+}
+
+function toast(msg, ok) {
+  const el = document.createElement('div');
+  el.style.cssText = `position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:13px 20px;border-radius:10px;font-size:.85rem;font-weight:600;z-index:999;box-shadow:0 8px 32px rgba(0,0,0,.5);animation:slideUp .3s ease;max-width:90vw;white-space:pre-line;text-align:center;background:${ok?'#22d3a5':'#f75959'};color:${ok?'#062':'#fff'}`;
+  el.textContent = msg;
+  if (!document.querySelector('#toast-style')) {
+    const s = document.createElement('style');
+    s.id = 'toast-style';
+    s.textContent = '@keyframes slideUp{from{opacity:0;transform:translateX(-50%) translateY(14px)}}';
+    document.head.appendChild(s);
+  }
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), ok ? 4500 : 8000);
+}
+
+async function testarCAPI() {
+  const bar = document.getElementById('capi-bar');
+  if (!bar) return;
+  bar.className = 'capi-bar capi-wait';
+  bar.textContent = '⏳ Verificando conexão com Meta CAPI…';
+  try {
+    const r = await fetch('/api/sale/test', { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      bar.className = 'capi-bar capi-ok';
+      bar.textContent = '✓ CAPI conectada — Pixel 672896704609252 recebendo eventos normalmente';
+    } else {
+      bar.className = 'capi-bar capi-err';
+      bar.textContent = '✗ Erro CAPI: ' + (d.result?.error?.error_user_msg || d.result?.error?.message || JSON.stringify(d));
+    }
+  } catch (e) {
+    bar.className = 'capi-bar capi-err';
+    bar.textContent = '✗ Servidor offline: ' + e.message;
+  }
+}
+
+async function registrarVenda() {
+  const btn = document.getElementById('btn-sale');
+  const product = document.getElementById('s-product').value.trim();
+  const value   = document.getElementById('s-value').value;
+  const currency = document.getElementById('s-currency').value;
+  const customer_name  = document.getElementById('s-name').value.trim();
+  const customer_phone = document.getElementById('s-phone').value.trim();
+  const customer_email = document.getElementById('s-email').value.trim();
+  const notes = document.getElementById('s-notes').value.trim();
+
+  if (!product || !value) { toast('Produto e valor são obrigatórios', false); return; }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Enviando para a Meta…';
+
+  try {
+    const r = await fetch('/api/sale', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product, value, currency, customer_name, customer_phone, customer_email, notes }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast(`✓ Venda registrada!\nMeta CAPI recebeu ${d.capi_received} evento(s)`, true);
+      ['s-product','s-value','s-name','s-phone','s-email','s-notes'].forEach(id => document.getElementById(id).value = '');
+      carregarLog();
+    } else {
+      toast('✗ Erro: ' + (d.error || 'desconhecido'), false);
+    }
+  } catch (e) {
+    toast('✗ ' + e.message, false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💬 Registrar Venda & Enviar para Meta';
+  }
+}
+
+async function carregarLog() {
+  try {
+    const sales = await fetch('/api/sales').then(r => r.json());
+    const hoje = new Date().toISOString().slice(0, 10);
+    const hojeSales = sales.filter(s => s.timestamp?.startsWith(hoje));
+    const logBody = document.getElementById('log-body');
+    const logCount = document.getElementById('log-count');
+    if (!logBody) return;
+
+    logCount.textContent = hojeSales.length ? `· ${hojeSales.length} venda(s)` : '';
+
+    if (!hojeSales.length) {
+      logBody.innerHTML = '<div style="color:var(--muted);font-size:.8rem;padding:20px 0;text-align:center">Nenhuma venda registrada hoje.</div>';
+      document.getElementById('sale-total').style.display = 'none';
+      return;
+    }
+
+    logBody.innerHTML = hojeSales.map(s => `
+      <div class="log-item">
+        <div class="log-dot ${s.capi_sent ? 'ok' : 'err'}"></div>
+        <div style="flex:1">
+          <div class="log-prod">${s.product}</div>
+          <div class="log-meta">${s.customer_name}${s.customer_phone ? ' · ' + s.customer_phone : ''}${s.notes ? ' · ' + s.notes : ''}</div>
+          <div style="font-size:.67rem;color:var(--muted);margin-top:2px">${s.capi_sent ? '✓ CAPI enviado' : '✗ CAPI falhou'} · ${new Date(s.timestamp).toLocaleTimeString('pt-BR')}</div>
+        </div>
+        <div class="log-val">${fmtR(s.value)}</div>
+      </div>`).join('');
+
+    const total = hojeSales.reduce((s, v) => s + v.value, 0);
+    document.getElementById('sale-total').style.display = 'flex';
+    document.getElementById('sale-total-val').textContent = fmtR(total);
+  } catch (e) { console.error(e); }
+}
+
+// ── Filtro de contas ──────────────────────────────────────────────────────────
+function buildAccountChips(adAccounts) {
+  // Mostra todas as contas que carregaram sem erro (mesmo que não tenham campanhas no cache)
+  const valid = (adAccounts || []).filter(a => !a.error);
+  if (valid.length < 2) return;
+
+  const row       = document.getElementById('account-row');
+  const container = document.getElementById('account-chips');
+  if (!row || !container) return;
+
+  row.classList.add('show');
+  container.innerHTML = valid.map(acc => {
+    const label = acc.name.length > 22 ? acc.name.slice(0, 20) + '…' : acc.name;
+    const active = acc.id === currentAccountId ? 'active' : '';
+    return `<button class="fp ${active}" data-account="${acc.id}" onclick="selectAccount('${acc.id}')">${label}</button>`;
+  }).join('');
+}
+
+function selectAccount(accountId) {
+  if (accountId === currentAccountId) return;
+  currentAccountId = accountId;
+
+  // Atualizar visual dos chips
+  document.querySelectorAll('[data-account]').forEach(el => {
+    el.classList.toggle('active', el.dataset.account === accountId);
+  });
+
+  // Re-buscar com o filtro de período atual
+  const activePreset = document.querySelector('.fp[data-preset].active')?.dataset.preset;
+  const since = document.getElementById('f-since').value;
+  const until = document.getElementById('f-until').value;
+
+  if (activePreset === 'custom' && since && until) {
+    loadInsights({ since, until });
+  } else {
+    loadInsights({ preset: activePreset || 'maximum' });
+  }
+}
+
+// ── Refresh status ────────────────────────────────────────────────────────────
+async function loadRefreshStatus() {
+  try {
+    const s = await fetch('/api/refresh/status').then(r => r.json());
+    const el = document.getElementById('refresh-ts');
+    if (!el) return;
+    if (s.running) {
+      el.textContent = '⏳ Atualizando…';
+    } else if (s.lastRefresh) {
+      const d = new Date(s.lastRefresh);
+      el.textContent = 'Atualizado ' + d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    } else {
+      el.textContent = 'Nunca atualizado';
+    }
+  } catch (e) { /* silencioso */ }
+}
+
+async function triggerRefresh() {
+  const btn = document.getElementById('btn-refresh');
+  const el = document.getElementById('refresh-ts');
+  btn.disabled = true;
+  btn.textContent = '⏳ Atualizando…';
+  if (el) el.textContent = 'Buscando dados…';
+  try {
+    const r = await fetch('/api/refresh', { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      toast('✓ Dados atualizados! Recarregando a página…', true);
+      await loadRefreshStatus();
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      toast('✗ Erro ao atualizar: ' + (d.msg || 'desconhecido'), false);
+    }
+  } catch (e) {
+    toast('✗ Servidor offline: ' + e.message, false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔄 Atualizar';
+    await loadRefreshStatus();
+  }
+}
+
+loadRefreshStatus();
+setInterval(loadRefreshStatus, 60000);
+</script>
+</body>
+</html>
