@@ -181,11 +181,25 @@ app.get('/api/insights', async (req, res) => {
 // ── GET /api/data ─────────────────────────────────────────────────────────────
 app.get('/api/data', (req, res) => {
   try {
-    const raw = JSON.parse(readFileSync(join(__dirname, 'meta_raw.json'), 'utf8'));
+    const raw = JSON.parse(readFileSync(rawFile, 'utf8'));
     res.json(raw);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// ── GET /api/debug ────────────────────────────────────────────────────────────
+app.get('/api/debug', async (req, res) => {
+  const tokenPreview = META_TOKEN ? META_TOKEN.slice(0, 12) + '...' : 'NÃO DEFINIDO';
+  const testUrl = `${BASE}/act_${ACC_ID}/insights?fields=spend&date_preset=last_7d&level=account&access_token=${META_TOKEN}`;
+  const testResult = await metaGet(testUrl);
+  res.json({
+    token_preview: tokenPreview,
+    acc_id: ACC_ID,
+    pixel_id: PIXEL_ID,
+    is_vercel: isVercel,
+    meta_test: testResult,
+  });
 });
 
 // ── GET /api/sales ────────────────────────────────────────────────────────────
