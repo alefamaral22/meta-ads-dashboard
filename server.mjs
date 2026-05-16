@@ -667,43 +667,62 @@ app.post('/api/agents/:id/analyze', async (req, res) => {
 app.post('/api/agents/ada/create-campaign', async (req, res) => {
   const { campaign_name, objective, daily_budget_brl, copy_headline, copy_body, cta_type, base_campaign_id } = req.body;
   if (!campaign_name || !copy_body) return res.status(400).json({ ok: false, error: 'campaign_name e copy_body são obrigatórios' });
-  if (!META_TOKEN) return res.status(400).json({ ok: false, error: 'META_TOKEN não configurado' });
+
+  // Aceita token do header (configurações do painel) ou variável de ambiente
+  const token = req.headers['x-meta-token'] || META_TOKEN;
+  if (!token) return res.status(400).json({ ok: false, error: 'META_TOKEN não configurado. Configure o token na aba ⚙️ Configurações.' });
+
+  const accId = req.headers['x-acc-id'] || ACC_ID;
+
+  const metaPost = async (url, params) => {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ ...params, access_token: token }),
+    });
+    return r.json();
+  };
+
+  const metaErr = (resp, ctx) => {
+    if (!resp.error) return null;
+    const e = resp.error;
+    return `${ctx}: ${e.message} (código ${e.code}${e.error_subcode ? '/' + e.error_subcode : ''})`;
+  };
 
   try {
-    const post = async (url, params) => {
-      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ ...params, access_token: META_TOKEN }) });
-      return r.json();
-    };
-
     // 1. Buscar targeting da campanha base (se fornecido)
     let targeting = { geo_locations: { countries: ['BR'] }, age_min: 18, age_max: 65 };
     if (base_campaign_id) {
-      const adsets = await metaGet(`${BASE}/act_${ACC_ID}/adsets?fields=targeting&filtering=${encodeURIComponent(JSON.stringify([{field:'campaign_id',operator:'EQUAL',value:base_campaign_id}]))}&limit=1&access_token=${META_TOKEN}`);
+      const adsets = await metaGet(`${BASE}/act_${accId}/adsets?fields=targeting&filtering=${encodeURIComponent(JSON.stringify([{field:'campaign_id',operator:'EQUAL',value:base_campaign_id}]))}&limit=1&access_token=${token}`);
       if (adsets.data?.[0]?.targeting) targeting = adsets.data[0].targeting;
     }
 
     // 2. Criar campanha (PAUSADA)
-    const camp = await post(`${BASE}/act_${ACC_ID}/campaigns`, {
+    const camp = await metaPost(`${BASE}/act_${accId}/campaigns`, {
       name: campaign_name,
       objective: objective || 'OUTCOME_LEADS',
       status: 'PAUSED',
       special_ad_categories: '[]',
     });
-    if (camp.error) throw new Error(camp.error.message);
+    const campErr = metaErr(camp, 'Criação de campanha');
+    if (campErr) throw new Error(campErr);
 
     // 3. Criar conjunto de anúncios (PAUSADO)
-    const adset = await post(`${BASE}/act_${ACC_ID}/adsets`, {
+    const adsetParams = {
       name: `${campaign_name} — Conjunto`,
       campaign_id: camp.id,
-      daily_budget: Math.round((daily_budget_brl || 30) * 100),
+      daily_budget: String(Math.round((daily_budget_brl || 30) * 100)),
       optimization_goal: 'LEAD_GENERATION',
       billing_event: 'IMPRESSIONS',
       targeting: JSON.stringify(targeting),
       status: 'PAUSED',
-    });
-    if (adset.error) throw new Error(adset.error.message);
+      start_time: new Date(Date.now() + 86400000).toISOString(), // amanhã
+    };
+    const adset = await metaPost(`${BASE}/act_${accId}/adsets`, adsetParams);
+    const adsetErr = metaErr(adset, 'Criação do conjunto');
+    if (adsetErr) throw new Error(adsetErr);
 
-    const adsManagerUrl = `https://www.facebook.com/adsmanager/manage/campaigns?act=${ACC_ID}&selected_campaign_ids=${camp.id}`;
+    const adsManagerUrl = `https://www.facebook.com/adsmanager/manage/campaigns?act=${accId}&selected_campaign_ids=${camp.id}`;
 
     res.json({
       ok: true,

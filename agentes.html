@@ -1210,7 +1210,11 @@ async function createCampaign(agentId, msgIdx) {
   try {
     const r = await fetch('/api/agents/ada/create-campaign', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-meta-token': localStorage.getItem('cfg_meta_token') || '',
+        'x-acc-id':     localStorage.getItem('cfg_acc_id') || '',
+      },
       body: JSON.stringify(payload),
     });
     const data = await r.json();
