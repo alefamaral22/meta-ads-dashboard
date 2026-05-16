@@ -4,6 +4,9 @@
     { "src": "server.mjs", "use": "@vercel/node" }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "/server.mjs" }
+    { "src": "/", "dest": "/meta-dashboard.html" },
+    { "src": "/meta-dashboard", "dest": "/meta-dashboard.html" },
+    { "src": "/vendas", "dest": "/vendas.html" },
+    { "src": "/api/(.*)", "dest": "/server.mjs" }
   ]
 }
