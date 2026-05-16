@@ -1736,13 +1736,14 @@ function renderCsvPreview(rows) {
 
   const preview = rows.slice(0, 8);
   document.getElementById('csv-tbl').innerHTML =
-    `<thead><tr><th>#</th><th>Produto</th><th>Valor</th><th>Nome</th><th>Telefone</th><th>Status</th></tr></thead>
+    `<thead><tr><th>#</th><th>Produto</th><th>Valor</th><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Status</th></tr></thead>
      <tbody>${preview.map(r => `<tr class="${r.valid?'':'row-err'}">
        <td>${r.linha}</td>
        <td>${r.produto||'—'}</td>
        <td>${r.valor>0?'R$ '+r.valor.toFixed(2).replace('.',','):'—'}</td>
        <td>${r.nome||'—'}</td>
        <td>${r.telefone||'—'}</td>
+       <td>${r.email||'—'}</td>
        <td>${r.valid?'✅':'❌ '+r.erro}</td>
      </tr>`).join('')}
      ${rows.length>8?`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:8px">…e mais ${rows.length-8} linha${rows.length-8!==1?'s':''}</td></tr>`:''}
