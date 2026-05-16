@@ -91,6 +91,23 @@
     .csv-drop-icon{font-size:2.2rem;margin-bottom:8px}
     .csv-drop-title{font-size:.88rem;font-weight:700;margin-bottom:4px}
     .csv-drop-sub{font-size:.73rem;color:var(--dim)}
+    /* Mapeamento de colunas */
+    .csv-map-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:16px}
+    .csv-map-title{font-size:.82rem;font-weight:700;margin-bottom:4px}
+    .csv-map-sub{font-size:.73rem;color:var(--dim);margin-bottom:16px;line-height:1.5}
+    .csv-map-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:8px 12px;align-items:center;margin-bottom:16px}
+    .csv-map-hdr{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding-bottom:6px;border-bottom:1px solid var(--border)}
+    .csv-map-colname{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:.78rem;font-family:monospace;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .csv-map-arrow{color:var(--muted);font-size:.85rem;text-align:center}
+    .csv-map-sel{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:.78rem;color:var(--text);outline:none;cursor:pointer;width:100%}
+    .csv-map-sel:focus{border-color:var(--accent)}
+    .csv-map-sel.matched{border-color:rgba(34,211,165,.4);background:rgba(34,211,165,.04)}
+    .csv-default-box{margin-top:12px;padding-top:14px;border-top:1px solid var(--border)}
+    .csv-default-box label{font-size:.72rem;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:6px}
+    .csv-default-box input{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:.82rem;outline:none;width:100%;transition:border-color .2s}
+    .csv-default-box input:focus{border-color:var(--accent)}
+    .csv-default-hint{font-size:.7rem;color:var(--muted);margin-top:4px}
+    /* Preview e import */
     .csv-stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
     .csv-stat{padding:4px 12px;border-radius:20px;font-size:.74rem;font-weight:600;background:var(--surface2);border:1px solid var(--border);color:var(--dim)}
     .csv-stat.ok{background:rgba(34,211,165,.1);color:var(--green);border-color:rgba(34,211,165,.25)}
@@ -101,12 +118,12 @@
     .csv-tbl td{padding:7px 12px;border-bottom:1px solid rgba(255,255,255,.03)}
     .csv-tbl tr:last-child td{border-bottom:none}
     .csv-tbl .row-err td{background:rgba(247,89,89,.05);color:var(--red)}
-    .btn-import{width:100%;padding:13px;border-radius:9px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:.88rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s}
+    .btn-import{width:100%;padding:13px;border-radius:9px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:.88rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s;margin-bottom:12px}
     .btn-import:hover{opacity:.85}.btn-import:disabled{opacity:.4;cursor:not-allowed}
-    .csv-prog-wrap{background:var(--surface2);border-radius:20px;height:7px;overflow:hidden;margin:12px 0 6px}
+    .csv-prog-wrap{background:var(--surface2);border-radius:20px;height:7px;overflow:hidden;margin:0 0 6px}
     .csv-prog-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:20px;transition:width .4s;width:0}
     .csv-prog-lbl{font-size:.74rem;color:var(--dim);text-align:center;margin-bottom:10px}
-    .csv-result{padding:12px 16px;border-radius:9px;font-size:.8rem;font-weight:600;margin-top:10px}
+    .csv-result{padding:12px 16px;border-radius:9px;font-size:.8rem;font-weight:600;margin-top:4px}
     .csv-result.ok{background:rgba(34,211,165,.1);border:1px solid rgba(34,211,165,.3);color:var(--green)}
     .csv-result.partial{background:rgba(247,194,68,.08);border:1px solid rgba(247,194,68,.25);color:var(--yellow)}
     .csv-result.fail{background:rgba(247,89,89,.1);border:1px solid rgba(247,89,89,.3);color:var(--red)}
@@ -518,6 +535,27 @@
         <div class="csv-drop-sub">Exportado do Excel, Google Sheets ou qualquer planilha</div>
       </div>
 
+      <!-- PASSO 1: Mapeamento de colunas -->
+      <div id="csv-mapping" style="display:none">
+        <div class="csv-map-box">
+          <div class="csv-map-title">🗂️ Mapeamento de colunas</div>
+          <div class="csv-map-sub">O sistema detectou as colunas abaixo. Verifique se cada uma está mapeada corretamente e ajuste se necessário:</div>
+          <div class="csv-map-grid">
+            <div class="csv-map-hdr">Coluna na planilha</div>
+            <div></div>
+            <div class="csv-map-hdr">Campo da plataforma</div>
+          </div>
+          <div class="csv-map-grid" id="csv-map-rows"></div>
+          <div class="csv-default-box">
+            <label>Produto padrão <span style="color:var(--muted);font-weight:400">(usado quando nenhuma coluna for mapeada como Produto)</span></label>
+            <input id="csv-default-produto" type="text" placeholder="Ex: Kit Essence Atrativos"/>
+            <div class="csv-default-hint">Deixe em branco se sua planilha já tem coluna de produto mapeada acima.</div>
+          </div>
+        </div>
+        <button class="btn-import" onclick="applyMapping()">✅ Confirmar e ver preview</button>
+      </div>
+
+      <!-- PASSO 2: Preview e importação -->
       <div id="csv-preview" style="display:none">
         <div class="csv-stats" id="csv-stats"></div>
         <div class="csv-table-wrap">
@@ -531,6 +569,7 @@
           <div class="csv-prog-lbl" id="csv-prog-lbl">Enviando…</div>
         </div>
         <div id="csv-result" class="csv-result" style="display:none"></div>
+        <button onclick="resetCsv()" style="background:none;border:none;color:var(--dim);font-size:.76rem;cursor:pointer;margin-top:8px;text-decoration:underline">↩ Carregar outro arquivo</button>
       </div>
     </div>
   </div>
@@ -1555,75 +1594,134 @@ loadRefreshStatus();
 setInterval(loadRefreshStatus, 60000);
 
 // ── CSV IMPORT ───────────────────────────────────────────────────────────────
-let csvRows = [];
+let csvRawHeaders = [];
+let csvRawData    = [];
+let csvRows       = [];
 
-const COL_ALIASES = {
-  produto:    ['produto','product','item','servico','servico','nome_produto','descricao','descricao','produto_servico'],
-  valor:      ['valor','value','preco','preco','total','amount','vlr','valor_total','preco_total','venda'],
-  nome:       ['nome','name','cliente','customer','customer_name','nome_cliente','comprador','razao_social'],
-  telefone:   ['telefone','phone','tel','celular','whatsapp','fone','customer_phone','numero','contato'],
-  email:      ['email','e-mail','customer_email','email_cliente','e_mail','mail'],
-  moeda:      ['moeda','currency','cur','divisao'],
-  observacoes:['observacoes','observacoes','notes','obs','nota','notas','observacao','observacao','comentario'],
+const CAMPO_LABELS = {
+  produto:    'Produto / Serviço',
+  valor:      'Valor (R$)',
+  nome:       'Nome do cliente',
+  telefone:   'Telefone / WhatsApp',
+  email:      'E-mail',
+  moeda:      'Moeda',
+  observacoes:'Observações',
 };
 
-function normalize(s) { return (s||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'_'); }
+const COL_ALIASES = {
+  produto:    ['produto','product','item','servico','nome_produto','descricao','produto_servico','service','merchandise','artigo'],
+  valor:      ['valor','value','preco','total','amount','vlr','valor_total','preco_total','venda','preco_venda','receita','sale_amount','price'],
+  nome:       ['nome','name','cliente','customer','customer_name','nome_cliente','comprador','razao_social','buyer'],
+  telefone:   ['telefone','phone','tel','celular','whatsapp','fone','customer_phone','numero','contato','mobile','cel'],
+  email:      ['email','e-mail','customer_email','email_cliente','e_mail','mail'],
+  moeda:      ['moeda','currency','cur','divisao'],
+  observacoes:['observacoes','notes','obs','nota','notas','observacao','comentario','remarks'],
+};
 
-function detectCols(headers) {
-  const idx = {};
-  for (const [key, aliases] of Object.entries(COL_ALIASES)) {
-    idx[key] = headers.findIndex(h => aliases.includes(normalize(h)));
-  }
-  return idx;
+function norm(s) {
+  return (s||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9]/g,'');
 }
 
-function parseCSV(text) {
-  text = text.replace(/^﻿/, ''); // remove BOM do Excel
-  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(l => l.trim());
-  if (lines.length < 2) return { rows: [] };
-
-  const splitLine = (line) => {
-    const res = []; let cur = ''; let q = false;
-    for (const c of line) {
-      if (c === '"') { q = !q; continue; }
-      if ((c === ',' || c === ';') && !q) { res.push(cur.trim()); cur = ''; continue; }
-      cur += c;
+function autoDetect(headers) {
+  const map = {};
+  const used = new Set();
+  for (const [field, aliases] of Object.entries(COL_ALIASES)) {
+    for (let i = 0; i < headers.length; i++) {
+      if (used.has(i)) continue;
+      if (aliases.includes(norm(headers[i]))) { map[field] = i; used.add(i); break; }
     }
-    res.push(cur.trim());
-    return res;
-  };
+  }
+  return map;
+}
 
+function splitLine(line) {
+  const res = []; let cur = ''; let q = false;
+  for (const c of line) {
+    if (c === '"') { q = !q; continue; }
+    if ((c === ',' || c === ';') && !q) { res.push(cur.trim()); cur = ''; continue; }
+    cur += c;
+  }
+  res.push(cur.trim());
+  return res;
+}
+
+function parseCSVRaw(text) {
+  text = text.replace(/^﻿/, '');
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(l => l.trim());
+  if (lines.length < 2) return { headers: [], data: [] };
   const headers = splitLine(lines[0]);
-  const idx = detectCols(headers);
+  const data = lines.slice(1).map(l => splitLine(l));
+  return { headers, data };
+}
 
-  const rows = lines.slice(1).map((line, i) => {
-    const cells = splitLine(line);
-    const get = (k) => idx[k] >= 0 ? (cells[idx[k]] || '').trim() : '';
-    const produto = get('produto');
-    const valorStr = get('valor').replace(/[^0-9.,]/g,'').replace(',','.');
-    const valor = parseFloat(valorStr) || 0;
-    const valid = !!produto && valor > 0;
+function buildRowsFromMapping(mapping, defaultProduto) {
+  return csvRawData.map((cells, i) => {
+    const get = (field) => {
+      const idx = mapping[field];
+      return idx != null && idx >= 0 ? (cells[idx] || '').trim() : '';
+    };
+    const produto  = get('produto') || defaultProduto || '';
+    const valorStr = get('valor').replace(/[R$\s]/g,'').replace(',','.').replace(/[^0-9.]/g,'');
+    const valor    = parseFloat(valorStr) || 0;
+    const valid    = !!produto && valor > 0;
     return {
-      linha: i + 2,
-      produto, valor,
-      nome: get('nome'), telefone: get('telefone'), email: get('email'),
-      moeda: get('moeda') || 'BRL', observacoes: get('observacoes'),
+      linha: i + 2, produto, valor,
+      nome:        get('nome'),
+      telefone:    get('telefone'),
+      email:       get('email'),
+      moeda:       get('moeda') || 'BRL',
+      observacoes: get('observacoes'),
       valid,
       erro: !produto ? 'produto vazio' : valor <= 0 ? 'valor inválido' : null,
     };
   });
-  return { rows };
 }
 
 function handleCsvFile(file) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (e) => {
-    const { rows } = parseCSV(e.target.result);
-    csvRows = rows;
-    renderCsvPreview(rows);
+    const { headers, data } = parseCSVRaw(e.target.result);
+    csvRawHeaders = headers;
+    csvRawData    = data;
+    showMappingUI(headers, autoDetect(headers));
   };
   reader.readAsText(file, 'UTF-8');
+}
+
+function showMappingUI(headers, detected) {
+  document.getElementById('csv-mapping').style.display = 'block';
+  document.getElementById('csv-preview').style.display = 'none';
+
+  const options = `<option value="">— Ignorar esta coluna —</option>` +
+    Object.entries(CAMPO_LABELS).map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
+
+  const rows = headers.map((h, i) => {
+    const matched = Object.entries(detected).find(([,idx]) => idx === i)?.[0] || '';
+    const selClass = matched ? 'csv-map-sel matched' : 'csv-map-sel';
+    return `
+      <div class="csv-map-colname" title="${h}">${h}</div>
+      <div class="csv-map-arrow">→</div>
+      <select class="csv-map-sel ${matched?'matched':''}" id="map_col_${i}">
+        ${options.replace(`value="${matched}"`, `value="${matched}" selected`)}
+      </select>`;
+  }).join('');
+
+  document.getElementById('csv-map-rows').innerHTML = rows;
+}
+
+function applyMapping() {
+  const mapping = {};
+  csvRawHeaders.forEach((_, i) => {
+    const sel = document.getElementById(`map_col_${i}`);
+    if (sel && sel.value) mapping[sel.value] = i;
+  });
+  const defaultProduto = (document.getElementById('csv-default-produto').value || '').trim();
+  csvRows = buildRowsFromMapping(mapping, defaultProduto);
+  document.getElementById('csv-mapping').style.display = 'none';
+  renderCsvPreview(csvRows);
 }
 
 function renderCsvPreview(rows) {
@@ -1653,6 +1751,13 @@ function renderCsvPreview(rows) {
   document.getElementById('btn-import').disabled = valid === 0;
   document.getElementById('csv-result').style.display = 'none';
   document.getElementById('csv-progress').style.display = 'none';
+}
+
+function resetCsv() {
+  csvRawHeaders = []; csvRawData = []; csvRows = [];
+  document.getElementById('csv-mapping').style.display = 'none';
+  document.getElementById('csv-preview').style.display = 'none';
+  document.getElementById('csvFile').value = '';
 }
 
 async function importCsv() {
@@ -1685,15 +1790,14 @@ async function importCsv() {
   el.className = 'csv-result ' + (fail===0?'ok':ok===0?'fail':'partial');
   el.textContent = fail===0
     ? `✅ ${ok} venda${ok!==1?'s':''} enviada${ok!==1?'s':''} com sucesso para a Meta!`
-    : ok===0
-    ? `❌ Falha ao enviar ${fail} venda${fail!==1?'s':''}.`
+    : ok===0 ? `❌ Falha ao enviar. Verifique sua conexão.`
     : `⚠️ ${ok} enviada${ok!==1?'s':''} com sucesso · ${fail} com falha`;
   el.style.display = 'block';
   document.getElementById('btn-import').disabled = false;
-  if (ok > 0) { loadSales(); } // atualiza o log de vendas
+  if (ok > 0) loadSales();
 }
 
-// Drag & drop no CSV drop zone
+// Drag & drop
 const csvDropEl = document.getElementById('csvDrop');
 if (csvDropEl) {
   csvDropEl.addEventListener('dragover',  e => { e.preventDefault(); csvDropEl.classList.add('over'); });
@@ -1701,7 +1805,7 @@ if (csvDropEl) {
   csvDropEl.addEventListener('drop', e => {
     e.preventDefault(); csvDropEl.classList.remove('over');
     const f = e.dataTransfer.files[0];
-    if (f) { document.getElementById('csvFile').files = e.dataTransfer.files; handleCsvFile(f); }
+    if (f) handleCsvFile(f);
   });
 }
 </script>
