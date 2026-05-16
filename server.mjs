@@ -576,9 +576,6 @@ async function runAgentAnalysis(agentId, apiKey, period) {
     dateParam = `date_preset=${periodLabel}`;
   }
 
-  // Filtrar apenas campanhas ativas (effective_status=ACTIVE)
-  const activeFilter = encodeURIComponent(JSON.stringify([{ field: 'effective_status', operator: 'IN', value: ['ACTIVE'] }]));
-
   const agents = loadAgentsData();
   agents[agentId] = { ...agents[agentId], status: 'working' };
   saveAgentsData(agents);
@@ -586,11 +583,11 @@ async function runAgentAnalysis(agentId, apiKey, period) {
   try {
     const fields = 'campaign_id,campaign_name,spend,impressions,reach,clicks,ctr,cpc,cpm,frequency,actions,purchase_roas,date_start,date_stop';
     const [campData, acctData] = await Promise.all([
-      metaGet(`${BASE}/act_${ACC_ID}/insights?fields=${fields}&${dateParam}&filtering=${activeFilter}&level=campaign&limit=50&access_token=${META_TOKEN}`),
+      metaGet(`${BASE}/act_${ACC_ID}/insights?fields=${fields}&${dateParam}&level=campaign&limit=100&access_token=${META_TOKEN}`),
       metaGet(`${BASE}/act_${ACC_ID}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach,frequency&${dateParam}&level=account&access_token=${META_TOKEN}`),
     ]);
 
-    // Somente campanhas ativas que gastaram no período
+    // Campanhas que tiveram entrega no período (spend > 0 = estavam ativas)
     const activeCampaigns = (campData.data || [])
       .filter(c => parseFloat(c.spend || 0) > 0)
       .sort((a, b) => parseFloat(b.spend || 0) - parseFloat(a.spend || 0))
