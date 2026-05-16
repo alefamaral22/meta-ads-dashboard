@@ -51,6 +51,8 @@
     .tabs{display:flex;gap:4px;padding:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:24px;overflow-x:auto}
     .tab{padding:8px 18px;border-radius:7px;font-size:.82rem;font-weight:600;cursor:pointer;color:var(--dim);border:none;background:transparent;white-space:nowrap;transition:all .2s}
     .tab.active{background:var(--accent);color:#fff}
+    a.tab{text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+    a.tab:hover{color:var(--text);background:rgba(255,255,255,.06)}
     .tab-pane{display:none}.tab-pane.active{display:block}
 
     /* ── KPI STRIP ── */
@@ -268,6 +270,7 @@
     <button class="tab" data-tab="pages">📄 Páginas</button>
     <button class="tab" data-tab="recs">💡 Recomendações</button>
     <button class="tab" data-tab="vendas">💬 Registrar Venda</button>
+    <a href="/agentes.html" class="tab">🤖 Time de Agentes</a>
   </div>
 
   <!-- ═══ OVERVIEW ═══ -->
