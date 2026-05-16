@@ -1,6 +1,11 @@
 {
   "version": 2,
   "builds": [
+    { "src": "meta-dashboard.html", "use": "@vercel/static" },
+    { "src": "vendas.html", "use": "@vercel/static" },
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "style.css", "use": "@vercel/static" },
+    { "src": "app.js", "use": "@vercel/static" },
     { "src": "server.mjs", "use": "@vercel/node" }
   ],
   "routes": [
