@@ -84,6 +84,33 @@
     .cfg-badge.ok{background:rgba(34,211,165,.12);color:var(--green);border:1px solid rgba(34,211,165,.3)}
     .cfg-badge.miss{background:rgba(247,89,89,.1);color:var(--red);border:1px solid rgba(247,89,89,.25)}
 
+    /* ── CSV IMPORT ── */
+    .csv-drop{position:relative;border:2px dashed var(--border);border-radius:var(--radius);padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px}
+    .csv-drop:hover,.csv-drop.over{border-color:var(--accent);background:rgba(79,110,247,.04)}
+    .csv-drop input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0}
+    .csv-drop-icon{font-size:2.2rem;margin-bottom:8px}
+    .csv-drop-title{font-size:.88rem;font-weight:700;margin-bottom:4px}
+    .csv-drop-sub{font-size:.73rem;color:var(--dim)}
+    .csv-stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+    .csv-stat{padding:4px 12px;border-radius:20px;font-size:.74rem;font-weight:600;background:var(--surface2);border:1px solid var(--border);color:var(--dim)}
+    .csv-stat.ok{background:rgba(34,211,165,.1);color:var(--green);border-color:rgba(34,211,165,.25)}
+    .csv-stat.err{background:rgba(247,89,89,.1);color:var(--red);border-color:rgba(247,89,89,.25)}
+    .csv-table-wrap{overflow-x:auto;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:14px}
+    .csv-tbl{width:100%;border-collapse:collapse;font-size:.75rem}
+    .csv-tbl th{background:var(--surface2);padding:8px 12px;text-align:left;font-weight:700;font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);position:sticky;top:0;z-index:1}
+    .csv-tbl td{padding:7px 12px;border-bottom:1px solid rgba(255,255,255,.03)}
+    .csv-tbl tr:last-child td{border-bottom:none}
+    .csv-tbl .row-err td{background:rgba(247,89,89,.05);color:var(--red)}
+    .btn-import{width:100%;padding:13px;border-radius:9px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:.88rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s}
+    .btn-import:hover{opacity:.85}.btn-import:disabled{opacity:.4;cursor:not-allowed}
+    .csv-prog-wrap{background:var(--surface2);border-radius:20px;height:7px;overflow:hidden;margin:12px 0 6px}
+    .csv-prog-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:20px;transition:width .4s;width:0}
+    .csv-prog-lbl{font-size:.74rem;color:var(--dim);text-align:center;margin-bottom:10px}
+    .csv-result{padding:12px 16px;border-radius:9px;font-size:.8rem;font-weight:600;margin-top:10px}
+    .csv-result.ok{background:rgba(34,211,165,.1);border:1px solid rgba(34,211,165,.3);color:var(--green)}
+    .csv-result.partial{background:rgba(247,194,68,.08);border:1px solid rgba(247,194,68,.25);color:var(--yellow)}
+    .csv-result.fail{background:rgba(247,89,89,.1);border:1px solid rgba(247,89,89,.3);color:var(--red)}
+
     /* ── KPI STRIP ── */
     .kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px}
     .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;transition:transform .2s}
@@ -472,6 +499,38 @@
           <span style="color:var(--dim)">Total do dia</span>
           <span class="sale-total-val" id="sale-total-val"></span>
         </div>
+      </div>
+    </div>
+
+    <!-- CSV IMPORT -->
+    <div class="section" style="margin-top:32px">📂 Importar Vendas via CSV</div>
+    <div class="card card-full">
+      <div class="card-title">📋 Upload de Planilha — Envio em Lote para Meta CAPI</div>
+      <p style="font-size:.78rem;color:var(--dim);margin-bottom:18px;line-height:1.6">
+        Exporte sua planilha como <strong>.csv</strong> (Excel: Arquivo → Salvar como → CSV). O sistema detecta as colunas automaticamente e envia cada linha como evento <strong>Purchase</strong> para a Meta.<br>
+        Colunas reconhecidas: <code>produto</code> · <code>valor</code> · <code>nome</code> · <code>telefone</code> · <code>email</code> · <code>moeda</code> · <code>observacoes</code>
+      </p>
+
+      <div class="csv-drop" id="csvDrop">
+        <input type="file" id="csvFile" accept=".csv,text/csv" onchange="handleCsvFile(this.files[0])"/>
+        <div class="csv-drop-icon">📤</div>
+        <div class="csv-drop-title">Arraste o arquivo CSV aqui ou clique para selecionar</div>
+        <div class="csv-drop-sub">Exportado do Excel, Google Sheets ou qualquer planilha</div>
+      </div>
+
+      <div id="csv-preview" style="display:none">
+        <div class="csv-stats" id="csv-stats"></div>
+        <div class="csv-table-wrap">
+          <table class="csv-tbl" id="csv-tbl"></table>
+        </div>
+        <button class="btn-import" id="btn-import" onclick="importCsv()">
+          🚀 <span id="import-label">Importar vendas para Meta CAPI</span>
+        </button>
+        <div id="csv-progress" style="display:none">
+          <div class="csv-prog-wrap"><div class="csv-prog-bar" id="csv-prog-bar"></div></div>
+          <div class="csv-prog-lbl" id="csv-prog-lbl">Enviando…</div>
+        </div>
+        <div id="csv-result" class="csv-result" style="display:none"></div>
       </div>
     </div>
   </div>
@@ -1494,6 +1553,157 @@ async function triggerRefresh() {
 
 loadRefreshStatus();
 setInterval(loadRefreshStatus, 60000);
+
+// ── CSV IMPORT ───────────────────────────────────────────────────────────────
+let csvRows = [];
+
+const COL_ALIASES = {
+  produto:    ['produto','product','item','servico','servico','nome_produto','descricao','descricao','produto_servico'],
+  valor:      ['valor','value','preco','preco','total','amount','vlr','valor_total','preco_total','venda'],
+  nome:       ['nome','name','cliente','customer','customer_name','nome_cliente','comprador','razao_social'],
+  telefone:   ['telefone','phone','tel','celular','whatsapp','fone','customer_phone','numero','contato'],
+  email:      ['email','e-mail','customer_email','email_cliente','e_mail','mail'],
+  moeda:      ['moeda','currency','cur','divisao'],
+  observacoes:['observacoes','observacoes','notes','obs','nota','notas','observacao','observacao','comentario'],
+};
+
+function normalize(s) { return (s||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'_'); }
+
+function detectCols(headers) {
+  const idx = {};
+  for (const [key, aliases] of Object.entries(COL_ALIASES)) {
+    idx[key] = headers.findIndex(h => aliases.includes(normalize(h)));
+  }
+  return idx;
+}
+
+function parseCSV(text) {
+  text = text.replace(/^﻿/, ''); // remove BOM do Excel
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(l => l.trim());
+  if (lines.length < 2) return { rows: [] };
+
+  const splitLine = (line) => {
+    const res = []; let cur = ''; let q = false;
+    for (const c of line) {
+      if (c === '"') { q = !q; continue; }
+      if ((c === ',' || c === ';') && !q) { res.push(cur.trim()); cur = ''; continue; }
+      cur += c;
+    }
+    res.push(cur.trim());
+    return res;
+  };
+
+  const headers = splitLine(lines[0]);
+  const idx = detectCols(headers);
+
+  const rows = lines.slice(1).map((line, i) => {
+    const cells = splitLine(line);
+    const get = (k) => idx[k] >= 0 ? (cells[idx[k]] || '').trim() : '';
+    const produto = get('produto');
+    const valorStr = get('valor').replace(/[^0-9.,]/g,'').replace(',','.');
+    const valor = parseFloat(valorStr) || 0;
+    const valid = !!produto && valor > 0;
+    return {
+      linha: i + 2,
+      produto, valor,
+      nome: get('nome'), telefone: get('telefone'), email: get('email'),
+      moeda: get('moeda') || 'BRL', observacoes: get('observacoes'),
+      valid,
+      erro: !produto ? 'produto vazio' : valor <= 0 ? 'valor inválido' : null,
+    };
+  });
+  return { rows };
+}
+
+function handleCsvFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const { rows } = parseCSV(e.target.result);
+    csvRows = rows;
+    renderCsvPreview(rows);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function renderCsvPreview(rows) {
+  const valid = rows.filter(r => r.valid).length;
+  const erros = rows.filter(r => !r.valid).length;
+  document.getElementById('csv-preview').style.display = 'block';
+  document.getElementById('csv-stats').innerHTML =
+    `<span class="csv-stat">${rows.length} linha${rows.length!==1?'s':''} detectada${rows.length!==1?'s':''}</span>` +
+    `<span class="csv-stat ok">✅ ${valid} válida${valid!==1?'s':''}</span>` +
+    (erros ? `<span class="csv-stat err">❌ ${erros} com erro</span>` : '');
+  document.getElementById('import-label').textContent = `Importar ${valid} venda${valid!==1?'s':''} para Meta CAPI`;
+
+  const preview = rows.slice(0, 8);
+  document.getElementById('csv-tbl').innerHTML =
+    `<thead><tr><th>#</th><th>Produto</th><th>Valor</th><th>Nome</th><th>Telefone</th><th>Status</th></tr></thead>
+     <tbody>${preview.map(r => `<tr class="${r.valid?'':'row-err'}">
+       <td>${r.linha}</td>
+       <td>${r.produto||'—'}</td>
+       <td>${r.valor>0?'R$ '+r.valor.toFixed(2).replace('.',','):'—'}</td>
+       <td>${r.nome||'—'}</td>
+       <td>${r.telefone||'—'}</td>
+       <td>${r.valid?'✅':'❌ '+r.erro}</td>
+     </tr>`).join('')}
+     ${rows.length>8?`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:8px">…e mais ${rows.length-8} linha${rows.length-8!==1?'s':''}</td></tr>`:''}
+     </tbody>`;
+
+  document.getElementById('btn-import').disabled = valid === 0;
+  document.getElementById('csv-result').style.display = 'none';
+  document.getElementById('csv-progress').style.display = 'none';
+}
+
+async function importCsv() {
+  const valid = csvRows.filter(r => r.valid);
+  if (!valid.length) return;
+  document.getElementById('btn-import').disabled = true;
+  document.getElementById('csv-progress').style.display = 'block';
+  document.getElementById('csv-result').style.display = 'none';
+  const bar = document.getElementById('csv-prog-bar');
+  const lbl = document.getElementById('csv-prog-lbl');
+  let ok = 0, fail = 0;
+  for (let i = 0; i < valid.length; i++) {
+    const row = valid[i];
+    lbl.textContent = `Enviando ${i+1} de ${valid.length}…`;
+    bar.style.width = (i / valid.length * 100) + '%';
+    try {
+      const body = { product: row.produto, value: row.valor, currency: row.moeda||'BRL' };
+      if (row.nome)        body.customer_name  = row.nome;
+      if (row.telefone)    body.customer_phone = row.telefone;
+      if (row.email)       body.customer_email = row.email;
+      if (row.observacoes) body.notes          = row.observacoes;
+      const r = await fetch('/api/sale', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      (await r.json()).ok ? ok++ : fail++;
+    } catch { fail++; }
+    await new Promise(r => setTimeout(r, 300));
+  }
+  bar.style.width = '100%';
+  lbl.textContent = 'Concluído!';
+  const el = document.getElementById('csv-result');
+  el.className = 'csv-result ' + (fail===0?'ok':ok===0?'fail':'partial');
+  el.textContent = fail===0
+    ? `✅ ${ok} venda${ok!==1?'s':''} enviada${ok!==1?'s':''} com sucesso para a Meta!`
+    : ok===0
+    ? `❌ Falha ao enviar ${fail} venda${fail!==1?'s':''}.`
+    : `⚠️ ${ok} enviada${ok!==1?'s':''} com sucesso · ${fail} com falha`;
+  el.style.display = 'block';
+  document.getElementById('btn-import').disabled = false;
+  if (ok > 0) { loadSales(); } // atualiza o log de vendas
+}
+
+// Drag & drop no CSV drop zone
+const csvDropEl = document.getElementById('csvDrop');
+if (csvDropEl) {
+  csvDropEl.addEventListener('dragover',  e => { e.preventDefault(); csvDropEl.classList.add('over'); });
+  csvDropEl.addEventListener('dragleave', () => csvDropEl.classList.remove('over'));
+  csvDropEl.addEventListener('drop', e => {
+    e.preventDefault(); csvDropEl.classList.remove('over');
+    const f = e.dataTransfer.files[0];
+    if (f) { document.getElementById('csvFile').files = e.dataTransfer.files; handleCsvFile(f); }
+  });
+}
 </script>
 </body>
 </html>
