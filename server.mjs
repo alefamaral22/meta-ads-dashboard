@@ -190,14 +190,17 @@ app.get('/api/data', (req, res) => {
 
 // ── GET /api/debug ────────────────────────────────────────────────────────────
 app.get('/api/debug', async (req, res) => {
-  const tokenPreview = META_TOKEN ? META_TOKEN.slice(0, 12) + '...' : 'NÃO DEFINIDO';
-  const testUrl = `${BASE}/act_${ACC_ID}/insights?fields=spend&date_preset=last_7d&level=account&access_token=${META_TOKEN}`;
-  const testResult = await metaGet(testUrl);
+  const tokenFromEnv = process.env.META_TOKEN;
+  const tokenPreview = tokenFromEnv ? tokenFromEnv.slice(0, 12) + '...' : 'NÃO DEFINIDO';
+  const envKeys = Object.keys(process.env).filter(k => !['PATH','HOME','USER','SHELL','PWD'].includes(k));
+  const testUrl = `${BASE}/act_${ACC_ID}/insights?fields=spend&date_preset=last_7d&level=account&access_token=${tokenFromEnv}`;
+  const testResult = tokenFromEnv ? await metaGet(testUrl) : { error: 'token ausente' };
   res.json({
     token_preview: tokenPreview,
     acc_id: ACC_ID,
     pixel_id: PIXEL_ID,
     is_vercel: isVercel,
+    env_keys: envKeys,
     meta_test: testResult,
   });
 });
