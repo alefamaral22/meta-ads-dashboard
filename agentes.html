@@ -954,8 +954,10 @@ async function analyze() {
   area.innerHTML = renderLoading(activeAgent);
 
   try {
+    const storedKey = localStorage.getItem('cfg_anthropic_key') || '';
     const r = await fetch(`/api/agents/${activeAgent.id}/analyze`, { method: 'POST',
-      headers: {'Content-Type':'application/json'}, body: JSON.stringify({}) });
+      headers: {'Content-Type':'application/json', ...(storedKey ? {'x-anthropic-key': storedKey} : {})},
+      body: JSON.stringify({}) });
     if (!r.ok) throw new Error(await r.text());
     agentsData = await r.json();
     const d = agentsData[activeAgent.id] || {};

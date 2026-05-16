@@ -516,8 +516,8 @@ function loadAgentsData() {
 
 function saveAgentsData(data) { writeFileSync(agentsFile, JSON.stringify(data, null, 2)); }
 
-async function runAgentAnalysis(agentId) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+async function runAgentAnalysis(agentId, apiKey) {
+  apiKey = apiKey || process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return { ok: false, msg: 'ANTHROPIC_API_KEY não configurada' };
 
   const agents = loadAgentsData();
@@ -583,7 +583,8 @@ app.get('/api/agents/status', (req, res) => res.json(loadAgentsData()));
 app.post('/api/agents/:id/analyze', async (req, res) => {
   const { id } = req.params;
   if (!AGENT_DEFS[id]) return res.status(404).json({ error: 'Agente não encontrado' });
-  const result = await runAgentAnalysis(id);
+  const apiKey = req.headers['x-anthropic-key'] || process.env.ANTHROPIC_API_KEY;
+  const result = await runAgentAnalysis(id, apiKey);
   if (!result.ok) return res.status(500).json({ error: result.msg });
   res.json(loadAgentsData());
 });

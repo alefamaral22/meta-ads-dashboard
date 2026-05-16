@@ -55,6 +55,35 @@
     a.tab:hover{color:var(--text);background:rgba(255,255,255,.06)}
     .tab-pane{display:none}.tab-pane.active{display:block}
 
+    /* ── CONFIGURAÇÕES ── */
+    .config-wrap{max-width:680px;margin:0 auto;padding-bottom:40px}
+    .config-header{margin-bottom:28px}
+    .config-header h2{font-size:1.3rem;font-weight:800;margin-bottom:6px}
+    .config-header p{font-size:.8rem;color:var(--dim);line-height:1.6}
+    .config-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+    .config-section-title{font-size:.75rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.07em;margin-bottom:16px}
+    .config-field{margin-bottom:16px}
+    .config-field:last-child{margin-bottom:0}
+    .config-field label{display:block;font-size:.72rem;font-weight:600;color:var(--dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+    .config-input-wrap{display:flex;gap:6px}
+    .config-input-wrap input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.82rem;font-family:monospace;outline:none;transition:border-color .2s}
+    .config-input-wrap input:focus{border-color:var(--accent)}
+    .cfg-eye{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0 12px;cursor:pointer;font-size:.95rem;color:var(--dim);transition:all .2s}
+    .cfg-eye:hover{border-color:var(--accent);color:var(--accent)}
+    .config-hint{font-size:.7rem;color:var(--muted);margin-top:5px}
+    .config-actions{display:flex;gap:10px;margin-top:20px}
+    .cfg-save{padding:10px 24px;border-radius:8px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:.82rem;font-weight:700;transition:opacity .2s}
+    .cfg-save:hover{opacity:.85}
+    .cfg-clear{padding:10px 18px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--dim);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s}
+    .cfg-clear:hover{border-color:var(--red);color:var(--red)}
+    .cfg-status{margin-top:12px;padding:10px 14px;border-radius:8px;font-size:.8rem;font-weight:600}
+    .cfg-status.ok{background:rgba(34,211,165,.1);border:1px solid rgba(34,211,165,.3);color:var(--green)}
+    .cfg-status.err{background:rgba(247,89,89,.1);border:1px solid rgba(247,89,89,.3);color:var(--red)}
+    .config-note{background:rgba(79,110,247,.06);border:1px solid rgba(79,110,247,.15);border-radius:10px;padding:14px 16px;font-size:.76rem;color:var(--dim);line-height:1.6;margin-top:20px}
+    .cfg-badge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;font-size:.68rem;font-weight:700}
+    .cfg-badge.ok{background:rgba(34,211,165,.12);color:var(--green);border:1px solid rgba(34,211,165,.3)}
+    .cfg-badge.miss{background:rgba(247,89,89,.1);color:var(--red);border:1px solid rgba(247,89,89,.25)}
+
     /* ── KPI STRIP ── */
     .kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px}
     .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;transition:transform .2s}
@@ -271,6 +300,7 @@
     <button class="tab" data-tab="recs">💡 Recomendações</button>
     <button class="tab" data-tab="vendas">💬 Registrar Venda</button>
     <a href="/agentes.html" class="tab">🤖 Time de Agentes</a>
+    <button class="tab" data-tab="config">⚙️ Configurações</button>
   </div>
 
   <!-- ═══ OVERVIEW ═══ -->
@@ -446,6 +476,61 @@
     </div>
   </div>
 
+  <!-- ═══ CONFIGURAÇÕES ═══ -->
+  <div id="tab-config" class="tab-pane">
+    <div class="config-wrap">
+      <div class="config-header">
+        <h2>⚙️ Configurações</h2>
+        <p>Chaves de API salvas no seu navegador (localStorage). Usadas como fallback quando as variáveis de ambiente do servidor não estão definidas — útil para rodar localmente.</p>
+      </div>
+
+      <div class="config-section">
+        <div class="config-section-title">🤖 Anthropic — Agentes de IA</div>
+        <div class="config-field">
+          <label>ANTHROPIC_API_KEY <span id="badge-anthropic" class="cfg-badge miss">✗ não configurada</span></label>
+          <div class="config-input-wrap">
+            <input id="cfg-anthropic" type="password" placeholder="sk-ant-api03-..." autocomplete="off"/>
+            <button class="cfg-eye" onclick="toggleCfg('cfg-anthropic',this)">👁️</button>
+          </div>
+          <div class="config-hint">Obtenha em <strong>console.anthropic.com → API Keys</strong></div>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <div class="config-section-title">📘 Meta Ads</div>
+        <div class="config-field">
+          <label>META_TOKEN (Access Token) <span id="badge-meta-token" class="cfg-badge miss">✗ não configurada</span></label>
+          <div class="config-input-wrap">
+            <input id="cfg-meta-token" type="password" placeholder="EAAxxxxx..." autocomplete="off"/>
+            <button class="cfg-eye" onclick="toggleCfg('cfg-meta-token',this)">👁️</button>
+          </div>
+        </div>
+        <div class="config-field">
+          <label>ACC_ID (ID da Conta de Anúncios) <span id="badge-acc-id" class="cfg-badge miss">✗ não configurada</span></label>
+          <div class="config-input-wrap">
+            <input id="cfg-acc-id" type="text" placeholder="226773313101799" autocomplete="off"/>
+          </div>
+        </div>
+        <div class="config-field">
+          <label>PIXEL_ID <span id="badge-pixel-id" class="cfg-badge miss">✗ não configurada</span></label>
+          <div class="config-input-wrap">
+            <input id="cfg-pixel-id" type="text" placeholder="672896704609252" autocomplete="off"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="config-actions">
+        <button class="cfg-save" onclick="saveConfig()">💾 Salvar</button>
+        <button class="cfg-clear" onclick="clearConfig()">🗑️ Limpar tudo</button>
+      </div>
+      <div id="cfg-status" class="cfg-status" style="display:none"></div>
+
+      <div class="config-note">
+        <strong>ℹ️ Como funciona:</strong> No Vercel (produção) o servidor lê as chaves das variáveis de ambiente configuradas no painel do Vercel. Localmente, configure aqui e as chaves serão enviadas como cabeçalhos nas requisições ao servidor. As chaves nunca saem do seu navegador para terceiros.
+      </div>
+    </div>
+  </div>
+
 </div><!-- /page -->
 
 <footer id="footer-ts"></footer>
@@ -459,8 +544,59 @@ document.querySelectorAll('.tab').forEach(btn => {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'config') loadConfig();
   });
 });
+
+// ── CONFIGURAÇÕES ────────────────────────────────────────────────────────────
+const CFG = { anthropic:'cfg_anthropic_key', metaToken:'cfg_meta_token', accId:'cfg_acc_id', pixelId:'cfg_pixel_id' };
+
+function cfgGet(k) { return localStorage.getItem(CFG[k]) || ''; }
+
+function loadConfig() {
+  document.getElementById('cfg-anthropic').value  = cfgGet('anthropic');
+  document.getElementById('cfg-meta-token').value = cfgGet('metaToken');
+  document.getElementById('cfg-acc-id').value     = cfgGet('accId');
+  document.getElementById('cfg-pixel-id').value   = cfgGet('pixelId');
+  updateBadge('badge-anthropic', cfgGet('anthropic'));
+  updateBadge('badge-meta-token', cfgGet('metaToken'));
+  updateBadge('badge-acc-id', cfgGet('accId'));
+  updateBadge('badge-pixel-id', cfgGet('pixelId'));
+}
+
+function updateBadge(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (val) { el.className='cfg-badge ok'; el.textContent='✓ configurada'; }
+  else     { el.className='cfg-badge miss'; el.textContent='✗ não configurada'; }
+}
+
+function saveConfig() {
+  localStorage.setItem(CFG.anthropic, document.getElementById('cfg-anthropic').value.trim());
+  localStorage.setItem(CFG.metaToken,  document.getElementById('cfg-meta-token').value.trim());
+  localStorage.setItem(CFG.accId,      document.getElementById('cfg-acc-id').value.trim());
+  localStorage.setItem(CFG.pixelId,    document.getElementById('cfg-pixel-id').value.trim());
+  loadConfig();
+  showCfgStatus('✅ Configurações salvas com sucesso!', 'ok');
+}
+
+function clearConfig() {
+  Object.values(CFG).forEach(k => localStorage.removeItem(k));
+  loadConfig();
+  showCfgStatus('🗑️ Configurações removidas.', 'err');
+}
+
+function showCfgStatus(msg, cls) {
+  const el = document.getElementById('cfg-status');
+  el.className = 'cfg-status ' + cls; el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+function toggleCfg(id, btn) {
+  const inp = document.getElementById(id);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁️' : '🙈';
+}
 
 // ── UTILS ────────────────────────────────────────────────────────────────────
 const R = n => 'R$' + parseFloat(n||0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g,'.').replace(/,(\d{2})$/,',$1');
