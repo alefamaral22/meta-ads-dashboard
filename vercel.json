@@ -2,16 +2,18 @@
   "version": 2,
   "builds": [
     { "src": "meta-dashboard.html", "use": "@vercel/static" },
-    { "src": "vendas.html", "use": "@vercel/static" },
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "style.css", "use": "@vercel/static" },
-    { "src": "app.js", "use": "@vercel/static" },
-    { "src": "server.mjs", "use": "@vercel/node" }
+    { "src": "vendas.html",         "use": "@vercel/static" },
+    { "src": "agentes.html",        "use": "@vercel/static" },
+    { "src": "index.html",          "use": "@vercel/static" },
+    { "src": "style.css",           "use": "@vercel/static" },
+    { "src": "app.js",              "use": "@vercel/static" },
+    { "src": "server.mjs",          "use": "@vercel/node" }
   ],
   "routes": [
-    { "src": "/", "dest": "/meta-dashboard.html" },
-    { "src": "/meta-dashboard", "dest": "/meta-dashboard.html" },
-    { "src": "/vendas", "dest": "/vendas.html" },
-    { "src": "/api/(.*)", "dest": "/server.mjs" }
+    { "src": "/",                    "dest": "/meta-dashboard.html" },
+    { "src": "/meta-dashboard",      "dest": "/meta-dashboard.html" },
+    { "src": "/vendas",              "dest": "/vendas.html" },
+    { "src": "/agentes",             "dest": "/agentes.html" },
+    { "src": "/api/(.*)",            "dest": "/server.mjs" }
   ]
 }

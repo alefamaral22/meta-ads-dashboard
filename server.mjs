@@ -454,10 +454,177 @@ app.post('/api/refresh', async (req, res) => {
   res.json(result);
 });
 
+// ── AGENTES ──────────────────────────────────────────────────────────────────
+const agentsFile = join(dataDir, 'agents_data.json');
+
+const AGENT_DEFS = {
+  trace: {
+    name: 'Trace', role: 'Analista de Tráfego Pago',
+    prompt: (data) => `Você é Trace, analista sênior de tráfego pago da Meta Ads. Analise os dados abaixo e retorne APENAS JSON válido (sem markdown):
+{"messages":[{"type":"text","text":"mensagem em português simples, max 2 frases, mencione números reais"},{"type":"action","priority":"urgent|opportunity|suggestion","title":"título max 6 palavras","description":"contexto com números reais, max 2 frases","action_type":"pause_campaign|update_budget|info_only","action_payload":{"campaign_id":"id ou null","campaign_name":"nome"},"status":"pending"}]}
+Foque em: frequência >3 (saturação), CTR abaixo de 1%, campanhas com ROAS<2 (pausar), campanhas com ROAS>3.5 (escalar).
+Dados (últimos 7 dias): ${JSON.stringify(data)}
+Gere 1-2 mensagens de texto e 1-3 ações. Use linguagem direta e didática. Responda APENAS o JSON.`,
+  },
+  buck: {
+    name: 'Buck', role: 'Otimizador de Orçamento',
+    prompt: (data) => `Você é Buck, especialista em otimização de orçamento Meta Ads. Retorne APENAS JSON:
+{"messages":[{"type":"text","text":"análise de orçamento em português, max 2 frases com números reais"},{"type":"action","priority":"urgent|opportunity|suggestion","title":"título max 6 palavras","description":"justificativa com números, max 2 frases","action_type":"update_budget|pause_campaign|info_only","action_payload":{"adset_id":"id ou null","adset_name":"nome","new_budget":valor_em_centavos},"status":"pending"}]}
+Foque em: redistribuir verba de campanhas ruins para boas, identificar campanhas esgotando orçamento cedo, sugerir aumentos onde ROAS>3.
+Dados: ${JSON.stringify(data)}
+Gere 1-2 mensagens e 1-3 ações. Responda APENAS o JSON.`,
+  },
+  cris: {
+    name: 'Cris', role: 'Revisora de Criativos',
+    prompt: (data) => `Você é Cris, especialista em criativos Meta Ads. Retorne APENAS JSON:
+{"messages":[{"type":"text","text":"análise de criativos em português, max 2 frases com dados reais"},{"type":"action","priority":"urgent|opportunity|suggestion","title":"título max 6 palavras","description":"contexto com métricas, max 2 frases","action_type":"pause_campaign|info_only","action_payload":{"campaign_name":"nome"},"status":"pending"}]}
+Foque em: frequência >3.5 (criativo saturado — pausar), CTR muito baixo (criativo ruim), identificar o criativo campeão (maior CTR).
+Dados: ${JSON.stringify(data)}
+Gere 1-2 mensagens e 1-2 ações. Responda APENAS o JSON.`,
+  },
+  rex: {
+    name: 'Rex', role: 'Gerador de Relatórios',
+    prompt: (data) => `Você é Rex, especialista em relatórios de tráfego pago. Retorne APENAS JSON com um resumo executivo claro:
+{"messages":[{"type":"text","text":"parágrafo de resumo executivo, max 3 frases com números totais"},{"type":"text","text":"principais destaques positivos e negativos do período, max 3 frases"},{"type":"action","priority":"suggestion","title":"Relatório completo gerado","description":"Resumo do período com métricas consolidadas","action_type":"info_only","action_payload":{},"status":"pending"}]}
+Dados: ${JSON.stringify(data)}
+Seja direto e use os números reais. Responda APENAS o JSON.`,
+  },
+  ada: {
+    name: 'Ada', role: 'Criadora de Anúncios',
+    prompt: (data) => `Você é Ada, copywriter especialista em anúncios Meta Ads para WhatsApp. Retorne APENAS JSON com sugestões de copy:
+{"messages":[{"type":"text","text":"análise do que está funcionando e o estilo de copy ideal, max 2 frases"},{"type":"text","text":"sugestão de texto de anúncio pronto para usar: headline + corpo + CTA"},{"type":"action","priority":"suggestion","title":"Copy A/B gerado","description":"2 variações de anúncio prontas para testar","action_type":"info_only","action_payload":{},"status":"pending"}]}
+Baseie-se nos dados das campanhas que performam melhor. Dados: ${JSON.stringify(data)}
+Responda APENAS o JSON.`,
+  },
+  cleo: {
+    name: 'Cleo', role: 'Diretora de Criativos',
+    prompt: (data) => `Você é Cleo, diretora de criativos especialista em vídeo para Meta Ads. Retorne APENAS JSON com um brief de vídeo:
+{"messages":[{"type":"text","text":"análise do que o público está respondendo, max 2 frases com dados"},{"type":"text","text":"brief completo: gancho (0-3s), desenvolvimento (3-15s), CTA (15-30s) — seja específico e criativo"},{"type":"action","priority":"suggestion","title":"Brief de vídeo gerado","description":"Roteiro completo pronto para gravar","action_type":"info_only","action_payload":{},"status":"pending"}]}
+Dados das campanhas ativas: ${JSON.stringify(data)}
+Responda APENAS o JSON.`,
+  },
+};
+
+function loadAgentsData() {
+  if (existsSync(agentsFile)) {
+    try { return JSON.parse(readFileSync(agentsFile, 'utf8')); } catch { /* fall */ }
+  }
+  const d = {};
+  Object.keys(AGENT_DEFS).forEach(id => { d[id] = { status: 'idle', generated_at: null, messages: [] }; });
+  return d;
+}
+
+function saveAgentsData(data) { writeFileSync(agentsFile, JSON.stringify(data, null, 2)); }
+
+async function runAgentAnalysis(agentId) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return { ok: false, msg: 'ANTHROPIC_API_KEY não configurada' };
+
+  const agents = loadAgentsData();
+  agents[agentId] = { ...agents[agentId], status: 'working' };
+  saveAgentsData(agents);
+
+  try {
+    const campData = await metaGet(`${BASE}/act_${ACC_ID}/insights?fields=campaign_id,campaign_name,spend,impressions,reach,clicks,ctr,cpc,cpm,frequency,actions,purchase_roas&date_preset=last_7d&level=campaign&limit=50&access_token=${META_TOKEN}`);
+    const acctData = await metaGet(`${BASE}/act_${ACC_ID}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach,frequency&date_preset=last_7d&level=account&access_token=${META_TOKEN}`);
+
+    const payload = {
+      account: acctData.data?.[0] || {},
+      campaigns: (campData.data || []).filter(c => parseFloat(c.spend || 0) > 0).slice(0, 10),
+    };
+
+    const def = AGENT_DEFS[agentId];
+    const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1200, messages: [{ role: 'user', content: def.prompt(payload) }] }),
+    });
+
+    if (!aiResp.ok) throw new Error(`Anthropic ${aiResp.status}`);
+    const aiResult = await aiResp.json();
+    let rawText = (aiResult.content?.[0]?.text || '').trim();
+    if (!rawText.startsWith('{')) rawText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    const parsed = JSON.parse(rawText);
+
+    agents[agentId] = { status: 'ready', generated_at: new Date().toISOString(), messages: parsed.messages || [] };
+    saveAgentsData(agents);
+    return { ok: true };
+  } catch (e) {
+    agents[agentId] = { status: 'idle', generated_at: null, messages: [] };
+    saveAgentsData(agents);
+    return { ok: false, msg: e.message };
+  }
+}
+
+async function runAutoAgents() {
+  console.log('[AGENTS] Iniciando análise automática…', new Date().toLocaleString('pt-BR'));
+  for (const id of ['trace', 'buck', 'cris']) {
+    await runAgentAnalysis(id);
+    console.log(`[AGENTS] ${id} concluído`);
+  }
+}
+
+function agendarAnaliseAgentes() {
+  const agora = new Date();
+  const prox = new Date(agora);
+  prox.setHours(8, 0, 0, 0);
+  if (prox <= agora) prox.setDate(prox.getDate() + 1);
+  const ms = prox - agora;
+  console.log(`[AGENTS] Próxima análise automática: ${prox.toLocaleString('pt-BR')}`);
+  setTimeout(async () => { await runAutoAgents(); agendarAnaliseAgentes(); }, ms);
+}
+
+agendarAnaliseAgentes();
+
+// ── GET /api/agents/status ────────────────────────────────────────────────────
+app.get('/api/agents/status', (req, res) => res.json(loadAgentsData()));
+
+// ── POST /api/agents/:id/analyze ─────────────────────────────────────────────
+app.post('/api/agents/:id/analyze', async (req, res) => {
+  const { id } = req.params;
+  if (!AGENT_DEFS[id]) return res.status(404).json({ error: 'Agente não encontrado' });
+  const result = await runAgentAnalysis(id);
+  if (!result.ok) return res.status(500).json({ error: result.msg });
+  res.json(loadAgentsData());
+});
+
+// ── POST /api/agents/:id/action ───────────────────────────────────────────────
+app.post('/api/agents/:id/action', async (req, res) => {
+  const { id } = req.params;
+  const { message_index, confirmed } = req.body;
+  const agents = loadAgentsData();
+  const agent = agents[id];
+  if (!agent || !agent.messages[message_index]) return res.status(404).json({ error: 'Ação não encontrada' });
+
+  const msg = agent.messages[message_index];
+  if (confirmed) {
+    try {
+      const p = msg.action_payload || {};
+      if (msg.action_type === 'pause_campaign' && p.campaign_id) {
+        await fetch(`${BASE}/${p.campaign_id}?status=PAUSED&access_token=${META_TOKEN}`, { method: 'POST' });
+      } else if (msg.action_type === 'update_budget' && p.adset_id && p.new_budget) {
+        await fetch(`${BASE}/${p.adset_id}?daily_budget=${p.new_budget}&access_token=${META_TOKEN}`, { method: 'POST' });
+      }
+      msg.status = 'executed';
+    } catch (e) {
+      return res.status(500).json({ error: 'Falha ao executar na Meta API: ' + e.message });
+    }
+  } else {
+    msg.status = 'skipped';
+  }
+
+  saveAgentsData(agents);
+  res.json(agents);
+});
+
+// ── GET /agentes ──────────────────────────────────────────────────────────────
+app.get('/agentes', (req, res) => res.redirect('/agentes.html'));
+
 // Localmente sobe o servidor normalmente; no Vercel exporta o app como handler
 if (!isVercel) {
   app.listen(PORT, () => {
     console.log(`\n✅ Dashboard:      http://localhost:${PORT}/meta-dashboard.html`);
+    console.log(`✅ Agentes:        http://localhost:${PORT}/agentes.html`);
     console.log(`✅ Registrar venda: http://localhost:${PORT}/vendas.html\n`);
   });
 }
