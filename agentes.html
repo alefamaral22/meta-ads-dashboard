@@ -297,7 +297,7 @@ body::before {
   padding: 18px 20px;
   max-width: 560px;
   margin-left: 46px;
-  position: relative; overflow: hidden;
+  position: relative; overflow-x: hidden;
   animation: fadeSlideIn .35s ease forwards;
   border: 1px solid var(--border);
 }
@@ -423,8 +423,14 @@ body::before {
 .action-copy-preview {
   background: var(--surface3); border-radius: 8px; padding: 10px 12px;
   margin: 8px 0; font-size: .76rem; line-height: 1.7;
+  max-height: 320px; overflow-y: auto;
 }
+.action-copy-preview::-webkit-scrollbar { width: 3px; }
+.action-copy-preview::-webkit-scrollbar-track { background: transparent; }
+.action-copy-preview::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 .action-copy-preview b { color: var(--dim); font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; }
+.action-copy-preview .preview-row { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.action-copy-preview .preview-row:first-child { margin-top: 0; padding-top: 0; border-top: none; }
 .btn-create { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: .78rem; font-weight: 700; background: linear-gradient(135deg,var(--green),#16a37a); color: #fff; transition: opacity .2s; }
 .btn-create:hover { opacity: .85; }
 .btn-create:disabled { opacity: .4; cursor: not-allowed; }
@@ -969,15 +975,28 @@ function renderMessage(msg, idx, ag) {
     // Criar campanha (Ada)
     if (msg.action_type === 'create_campaign') {
       const p = msg.action_payload || {};
+      // fallbacks para variações de nomes de campo que a IA pode usar
+      const camName   = p.campaign_name || p.nome || p.name || '';
+      const headline  = p.copy_headline || p.headline || p.titulo || p.head || '';
+      const body      = p.copy_body || p.body || p.texto || p.copy_text || p.copy || '';
+      const budget    = p.daily_budget_brl ?? p.budget_brl ?? p.budget ?? p.daily_budget ?? '';
+      const objetivo  = p.objective || p.objetivo || '';
+      const cta       = p.cta_type || p.cta || '';
+      const objPT     = { OUTCOME_LEADS:'Geração de Leads', OUTCOME_SALES:'Vendas', OUTCOME_TRAFFIC:'Tráfego', OUTCOME_AWARENESS:'Reconhecimento', OUTCOME_ENGAGEMENT:'Engajamento' };
+      const ctaPT     = { SEND_MESSAGE:'Enviar Mensagem (WhatsApp)', LEARN_MORE:'Saiba Mais', SHOP_NOW:'Comprar Agora', SIGN_UP:'Cadastrar', CONTACT_US:'Fale Conosco' };
+
       return `
         <div class="action-card" style="--priority-color:${colorMap[pri]}">
           <div class="action-priority priority-${pri}">${priLabel[msg.priority] || '🟢 Sugestão'}</div>
           <div class="action-title">${msg.title}</div>
           <div class="action-desc">${msg.description}</div>
           <div class="action-copy-preview">
-            ${p.copy_headline ? `<div><b>Headline</b><br>${p.copy_headline}</div>` : ''}
-            ${p.copy_body     ? `<div style="margin-top:6px"><b>Texto</b><br>${p.copy_body}</div>` : ''}
-            ${p.daily_budget_brl ? `<div style="margin-top:6px"><b>Orçamento</b> R$${p.daily_budget_brl}/dia</div>` : ''}
+            ${camName   ? `<div class="preview-row"><b>Nome da Campanha</b><br>${camName}</div>` : ''}
+            ${headline  ? `<div class="preview-row"><b>Headline</b><br>${headline}</div>` : ''}
+            ${body      ? `<div class="preview-row"><b>Texto do Anúncio</b><br>${body.replace(/\n/g,'<br>')}</div>` : ''}
+            ${budget    ? `<div class="preview-row"><b>Orçamento Diário</b><br>R$ ${budget}/dia</div>` : ''}
+            ${objetivo  ? `<div class="preview-row"><b>Objetivo</b><br>${objPT[objetivo] || objetivo}</div>` : ''}
+            ${cta       ? `<div class="preview-row"><b>Botão CTA</b><br>${ctaPT[cta] || cta}</div>` : ''}
           </div>
           <div class="action-btns" id="create-btns-${idx}">
             <button class="btn-create" onclick="createCampaign('${ag.id}', ${idx})">🚀 Criar no Gerenciador</button>
@@ -1171,6 +1190,17 @@ async function createCampaign(agentId, msgIdx) {
   if (!msg) return;
   const p = msg.action_payload || {};
 
+  // normaliza nomes de campo antes de enviar para o servidor
+  const payload = {
+    campaign_name:   p.campaign_name || p.nome || p.name || 'Campanha Ada',
+    objective:       p.objective || p.objetivo || 'OUTCOME_LEADS',
+    daily_budget_brl: p.daily_budget_brl ?? p.budget_brl ?? p.budget ?? p.daily_budget ?? 30,
+    copy_headline:   p.copy_headline || p.headline || p.titulo || p.head || '',
+    copy_body:       p.copy_body || p.body || p.texto || p.copy_text || p.copy || '',
+    cta_type:        p.cta_type || p.cta || 'SEND_MESSAGE',
+    base_campaign_id: p.base_campaign_id || p.campaign_id || null,
+  };
+
   const btns = document.getElementById(`create-btns-${msgIdx}`);
   const res  = document.getElementById(`create-result-${msgIdx}`);
   if (btns) btns.querySelector('.btn-create').disabled = true;
@@ -1181,7 +1211,7 @@ async function createCampaign(agentId, msgIdx) {
     const r = await fetch('/api/agents/ada/create-campaign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(p),
+      body: JSON.stringify(payload),
     });
     const data = await r.json();
     if (!data.ok) throw new Error(data.error || 'Erro desconhecido');
