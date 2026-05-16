@@ -376,12 +376,95 @@ body::before {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+/* ── MODAL PERÍODO ── */
+.period-modal {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.7); backdrop-filter: blur(10px);
+  display: flex; align-items: center; justify-content: center;
+}
+.period-box {
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 20px; padding: 32px 36px; max-width: 460px; width: 92%;
+  box-shadow: 0 32px 80px rgba(0,0,0,.6);
+  animation: fadeSlideIn .25s ease;
+}
+.period-title { font-size: 1.1rem; font-weight: 800; margin-bottom: 4px; }
+.period-sub   { font-size: .78rem; color: var(--dim); margin-bottom: 22px; }
+.period-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+.period-opt {
+  padding: 12px 8px; border-radius: 10px; border: 1px solid var(--border2);
+  background: var(--surface3); color: var(--text); font-size: .82rem; font-weight: 600;
+  cursor: pointer; transition: all .18s; text-align: center;
+}
+.period-opt:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,110,247,.08); }
+.period-opt.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+.period-divider { font-size: .72rem; color: var(--muted); text-align: center; margin-bottom: 12px; }
+.period-custom-row { display: flex; gap: 8px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+.period-custom-row input[type=date] {
+  flex: 1; min-width: 130px; background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 9px 12px; color: var(--text); font-size: .8rem; outline: none;
+}
+.period-custom-row input[type=date]:focus { border-color: var(--accent); }
+.period-footer { display: flex; gap: 10px; }
+.period-btn-go {
+  flex: 1; padding: 12px; border-radius: 10px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; font-size: .88rem; font-weight: 700; transition: opacity .2s;
+}
+.period-btn-go:hover { opacity: .88; }
+.period-btn-cancel {
+  padding: 12px 18px; border-radius: 10px; border: 1px solid var(--border2);
+  background: transparent; color: var(--dim); font-size: .82rem; cursor: pointer; transition: all .2s;
+}
+.period-btn-cancel:hover { border-color: var(--red); color: var(--red); }
+
+/* ── ACTION EXTRAS ── */
+.action-copy-preview {
+  background: var(--surface3); border-radius: 8px; padding: 10px 12px;
+  margin: 8px 0; font-size: .76rem; line-height: 1.7;
+}
+.action-copy-preview b { color: var(--dim); font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; }
+.btn-create { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: .78rem; font-weight: 700; background: linear-gradient(135deg,var(--green),#16a37a); color: #fff; transition: opacity .2s; }
+.btn-create:hover { opacity: .85; }
+.btn-create:disabled { opacity: .4; cursor: not-allowed; }
+.btn-download { padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(79,110,247,.4); background: rgba(79,110,247,.1); color: var(--accent); font-size: .78rem; font-weight: 700; cursor: pointer; transition: all .2s; }
+.btn-download:hover { background: rgba(79,110,247,.2); }
+.create-result { margin-top: 8px; padding: 9px 12px; border-radius: 8px; font-size: .76rem; font-weight: 600; }
+.create-result.ok { background: rgba(34,211,165,.1); border: 1px solid rgba(34,211,165,.3); color: var(--green); }
+.create-result.err { background: rgba(247,89,89,.1); border: 1px solid rgba(247,89,89,.3); color: var(--red); }
 </style>
 </head>
 <body>
 
 <!-- Toast container -->
 <div class="toast-container" id="toastContainer"></div>
+
+<!-- MODAL PERÍODO -->
+<div class="period-modal" id="periodModal" style="display:none">
+  <div class="period-box">
+    <div class="period-title">📅 Período de análise</div>
+    <div class="period-sub">Selecione o intervalo que o agente vai analisar</div>
+    <div class="period-grid">
+      <button class="period-opt" onclick="selectPeriod('today')">Hoje</button>
+      <button class="period-opt selected" onclick="selectPeriod('last_7d')">Últimos 7 dias</button>
+      <button class="period-opt" onclick="selectPeriod('last_14d')">Últimos 14 dias</button>
+      <button class="period-opt" onclick="selectPeriod('last_30d')">Últimos 30 dias</button>
+      <button class="period-opt" onclick="selectPeriod('last_90d')">Últimos 90 dias</button>
+      <button class="period-opt" onclick="selectPeriod('this_month')">Este mês</button>
+    </div>
+    <div class="period-divider">— ou período personalizado —</div>
+    <div class="period-custom-row">
+      <input type="date" id="pSince" placeholder="De"/>
+      <span style="color:var(--muted)">→</span>
+      <input type="date" id="pUntil" placeholder="Até"/>
+    </div>
+    <div class="period-footer">
+      <button class="period-btn-go" id="periodBtnGo" onclick="confirmPeriod()">🔍 Analisar</button>
+      <button class="period-btn-cancel" onclick="document.getElementById('periodModal').style.display='none'">Cancelar</button>
+    </div>
+  </div>
+</div>
 
 <!-- TOPBAR -->
 <div class="topbar">
@@ -883,6 +966,40 @@ function renderMessage(msg, idx, ag) {
         <div class="action-done skipped">⊘ Ignorado — ${msg.title}</div>
       </div>`;
 
+    // Criar campanha (Ada)
+    if (msg.action_type === 'create_campaign') {
+      const p = msg.action_payload || {};
+      return `
+        <div class="action-card" style="--priority-color:${colorMap[pri]}">
+          <div class="action-priority priority-${pri}">${priLabel[msg.priority] || '🟢 Sugestão'}</div>
+          <div class="action-title">${msg.title}</div>
+          <div class="action-desc">${msg.description}</div>
+          <div class="action-copy-preview">
+            ${p.copy_headline ? `<div><b>Headline</b><br>${p.copy_headline}</div>` : ''}
+            ${p.copy_body     ? `<div style="margin-top:6px"><b>Texto</b><br>${p.copy_body}</div>` : ''}
+            ${p.daily_budget_brl ? `<div style="margin-top:6px"><b>Orçamento</b> R$${p.daily_budget_brl}/dia</div>` : ''}
+          </div>
+          <div class="action-btns" id="create-btns-${idx}">
+            <button class="btn-create" onclick="createCampaign('${ag.id}', ${idx})">🚀 Criar no Gerenciador</button>
+            <button class="btn-skip" onclick="skipAction('${ag.id}', ${idx})">✗ Ignorar</button>
+          </div>
+          <div id="create-result-${idx}"></div>
+        </div>`;
+    }
+
+    // Download de relatório (Rex)
+    if (msg.action_type === 'download_report') {
+      return `
+        <div class="action-card" style="--priority-color:${colorMap[pri]}">
+          <div class="action-priority priority-${pri}">${priLabel[msg.priority] || '🟢 Sugestão'}</div>
+          <div class="action-title">${msg.title}</div>
+          <div class="action-desc">${msg.description}</div>
+          <div class="action-btns">
+            <button class="btn-download" onclick="downloadRexReport()">📥 Baixar relatório HTML</button>
+          </div>
+        </div>`;
+    }
+
     return `
       <div class="action-card" style="--priority-color:${colorMap[pri]}">
         <div class="action-priority priority-${pri}">${priLabel[msg.priority] || '🟢 Sugestão'}</div>
@@ -940,7 +1057,35 @@ async function loadStatus() {
   }
 }
 
-async function analyze() {
+// ── SELEÇÃO DE PERÍODO ────────────────────────────────────────────────────────
+let selectedPeriod = 'last_7d';
+
+function analyze() {
+  if (isAnalyzing) return;
+  // Mostrar modal de período
+  document.getElementById('periodModal').style.display = 'flex';
+  // Resetar datas customizadas
+  document.getElementById('pSince').value = '';
+  document.getElementById('pUntil').value = '';
+}
+
+function selectPeriod(p) {
+  selectedPeriod = p;
+  document.querySelectorAll('.period-opt').forEach(b => b.classList.remove('selected'));
+  event.target.classList.add('selected');
+}
+
+function confirmPeriod() {
+  const since = document.getElementById('pSince').value;
+  const until = document.getElementById('pUntil').value;
+  if (since && until) {
+    selectedPeriod = `${since}|${until}`;
+  }
+  document.getElementById('periodModal').style.display = 'none';
+  runAnalysis(selectedPeriod);
+}
+
+async function runAnalysis(period) {
   if (isAnalyzing) return;
   isAnalyzing = true;
 
@@ -955,9 +1100,11 @@ async function analyze() {
 
   try {
     const storedKey = localStorage.getItem('cfg_anthropic_key') || '';
-    const r = await fetch(`/api/agents/${activeAgent.id}/analyze`, { method: 'POST',
-      headers: {'Content-Type':'application/json', ...(storedKey ? {'x-anthropic-key': storedKey} : {})},
-      body: JSON.stringify({}) });
+    const r = await fetch(`/api/agents/${activeAgent.id}/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(storedKey ? { 'x-anthropic-key': storedKey } : {}) },
+      body: JSON.stringify({ period }),
+    });
     if (!r.ok) throw new Error(await r.text());
     agentsData = await r.json();
     const d = agentsData[activeAgent.id] || {};
@@ -1014,6 +1161,85 @@ function toast(msg, ok) {
   t.textContent = (ok ? '✓ ' : '✗ ') + msg;
   document.getElementById('toastContainer').appendChild(t);
   setTimeout(() => t.remove(), 4000);
+}
+
+/* ═══════════════════════════════════════════════════
+   ADA — CRIAR CAMPANHA
+═══════════════════════════════════════════════════ */
+async function createCampaign(agentId, msgIdx) {
+  const msg = agentsData[agentId]?.messages?.[msgIdx];
+  if (!msg) return;
+  const p = msg.action_payload || {};
+
+  const btns = document.getElementById(`create-btns-${msgIdx}`);
+  const res  = document.getElementById(`create-result-${msgIdx}`);
+  if (btns) btns.querySelector('.btn-create').disabled = true;
+
+  res.innerHTML = '<div style="font-size:.76rem;color:var(--dim);padding:6px 0">⏳ Criando campanha no Gerenciador de Anúncios…</div>';
+
+  try {
+    const r = await fetch('/api/agents/ada/create-campaign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(p),
+    });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || 'Erro desconhecido');
+
+    res.innerHTML = `
+      <div class="create-result ok">
+        ✅ Campanha criada com sucesso (pausada)!<br>
+        <a href="${data.ads_manager_url}" target="_blank" style="color:var(--accent);text-decoration:underline;font-size:.74rem">
+          → Abrir no Gerenciador de Anúncios para adicionar criativo e publicar
+        </a>
+      </div>`;
+    toast('Campanha criada! Adicione o criativo no Gerenciador.', true);
+  } catch (e) {
+    res.innerHTML = `<div class="create-result err">❌ Erro: ${e.message}</div>`;
+    if (btns) btns.querySelector('.btn-create').disabled = false;
+    toast('Erro ao criar campanha: ' + e.message, false);
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   REX — DOWNLOAD RELATÓRIO
+═══════════════════════════════════════════════════ */
+function downloadRexReport() {
+  const data = agentsData['rex'];
+  if (!data || !data.messages) return;
+
+  const period = data.period || 'Período não informado';
+  const date   = data.generated_at ? new Date(data.generated_at).toLocaleString('pt-BR') : '';
+  const msgs   = data.messages.filter(m => m.type === 'text').map(m => m.text).join('\n\n');
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>Relatório Meta Ads — Essence Atrativos</title>
+<style>
+  body{font-family:'Segoe UI',sans-serif;max-width:800px;margin:40px auto;padding:0 24px;color:#1a1a2e;line-height:1.7}
+  h1{font-size:1.6rem;font-weight:800;color:#1a1a2e;margin-bottom:4px}
+  .meta{font-size:.85rem;color:#666;margin-bottom:32px;padding-bottom:16px;border-bottom:2px solid #eee}
+  .section{background:#f8f9ff;border-left:4px solid #4f6ef7;border-radius:0 10px 10px 0;padding:16px 20px;margin-bottom:20px;white-space:pre-wrap;font-size:.9rem}
+  .footer{margin-top:40px;font-size:.75rem;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:16px}
+</style>
+</head>
+<body>
+<h1>📊 Relatório Meta Ads — Essence Atrativos</h1>
+<div class="meta">Período: <strong>${period}</strong> &nbsp;|&nbsp; Gerado em: ${date} &nbsp;|&nbsp; Agente: Rex</div>
+${data.messages.filter(m=>m.type==='text').map(m=>`<div class="section">${m.text}</div>`).join('')}
+<div class="footer">Gerado automaticamente pelo Time de Agentes IA · Meta Ads Dashboard · Essence Atrativos</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = `relatorio-meta-${period}-${new Date().toISOString().slice(0,10)}.html`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Relatório baixado!', true);
 }
 
 /* ═══════════════════════════════════════════════════

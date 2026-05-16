@@ -460,47 +460,93 @@ const agentsFile = join(dataDir, 'agents_data.json');
 const AGENT_DEFS = {
   trace: {
     name: 'Trace', role: 'Analista de Tráfego Pago',
-    prompt: (data) => `Você é Trace, analista sênior de tráfego pago da Meta Ads. Analise os dados abaixo e retorne APENAS JSON válido (sem markdown):
-{"messages":[{"type":"text","text":"mensagem em português simples, max 2 frases, mencione números reais"},{"type":"action","priority":"urgent|opportunity|suggestion","title":"título max 6 palavras","description":"contexto com números reais, max 2 frases","action_type":"pause_campaign|update_budget|info_only","action_payload":{"campaign_id":"id ou null","campaign_name":"nome"},"status":"pending"}]}
-Foque em: frequência >3 (saturação), CTR abaixo de 1%, campanhas com ROAS<2 (pausar), campanhas com ROAS>3.5 (escalar).
-Dados (últimos 7 dias): ${JSON.stringify(data)}
-Gere 1-2 mensagens de texto e 1-3 ações. Use linguagem direta e didática. Responda APENAS o JSON.`,
+    prompt: (data, period) => `Você é Trace, analista sênior de tráfego pago da Meta Ads para a conta "Essence Atrativos". Analise APENAS as campanhas ATIVAS abaixo e retorne APENAS JSON válido:
+{"messages":[{"type":"text","text":"resumo em 2 frases com números reais do período"},{"type":"action","priority":"urgent|opportunity|suggestion","title":"título max 6 palavras","description":"contexto com números reais, max 2 frases","action_type":"pause_campaign|update_budget|info_only","action_payload":{"campaign_id":"id ou null","campaign_name":"nome"},"status":"pending"}]}
+
+REGRAS CRÍTICAS — siga sempre:
+1. Campanhas em APRENDIZADO (gastos < R$150 no período OU criadas há menos de 7 dias): NÃO recomende pausar. Informe que estão aprendendo e precisam de mais tempo e dados
+2. Campanhas com BOM DESEMPENHO (ROAS>3 OU CTR>3% OU conversas/gasto baixo): diga EXPLICITAMENTE para NÃO mexer. "Campanha performando bem — mantenha como está"
+3. Campanhas SATURADAS (frequência>3): recomende novo criativo, NÃO pausar se ROAS for bom
+4. Pausar apenas: ROAS<1.5 E frequência>2 E gasto>R$80 E não está em aprendizado
+5. Escalar: ROAS>3.5 E frequência<2.5 — sugira aumentar orçamento 20%
+
+Período analisado: ${period}
+Dados (somente campanhas ativas com gasto no período): ${JSON.stringify(data)}
+Gere 1-2 textos e 1-3 ações. Responda APENAS o JSON.`,
   },
   buck: {
     name: 'Buck', role: 'Otimizador de Orçamento',
-    prompt: (data) => `Você é Buck, especialista em otimização de orçamento Meta Ads. Retorne APENAS JSON:
-{"messages":[{"type":"text","text":"análise de orçamento em português, max 2 frases com números reais"},{"type":"action","priority":"urgent|opportunity|suggestion","title":"título max 6 palavras","description":"justificativa com números, max 2 frases","action_type":"update_budget|pause_campaign|info_only","action_payload":{"adset_id":"id ou null","adset_name":"nome","new_budget":valor_em_centavos},"status":"pending"}]}
-Foque em: redistribuir verba de campanhas ruins para boas, identificar campanhas esgotando orçamento cedo, sugerir aumentos onde ROAS>3.
-Dados: ${JSON.stringify(data)}
-Gere 1-2 mensagens e 1-3 ações. Responda APENAS o JSON.`,
+    prompt: (data, period) => `Você é Buck, especialista em otimização de orçamento Meta Ads para "Essence Atrativos". Retorne APENAS JSON:
+{"messages":[{"type":"text","text":"análise de distribuição de orçamento em 2 frases com R$ reais"},{"type":"action","priority":"urgent|opportunity|suggestion","title":"título max 6 palavras","description":"justificativa com números, max 2 frases","action_type":"update_budget|pause_campaign|info_only","action_payload":{"adset_id":"id ou null","adset_name":"nome","new_budget":valor_em_centavos},"status":"pending"}]}
+
+REGRAS:
+1. Campanhas em aprendizado (gasto < R$150 no período): NÃO mexa no orçamento — deixe estabilizar
+2. Campanhas com ROAS>3: sugira aumentar orçamento 20-30%
+3. Campanhas com ROAS<1.5 e gasto>R$80: sugira reduzir orçamento ou pausar
+4. Redistribua verba de campanhas ruins para as que estão convertendo
+5. Nunca sugira cortar verba de campanha que está gerando conversas/leads a bom custo
+
+Período: ${period}. Dados: ${JSON.stringify(data)}
+Gere 1-2 textos e 1-3 ações. Responda APENAS o JSON.`,
   },
   cris: {
     name: 'Cris', role: 'Revisora de Criativos',
-    prompt: (data) => `Você é Cris, especialista em criativos Meta Ads. Retorne APENAS JSON:
-{"messages":[{"type":"text","text":"análise de criativos em português, max 2 frases com dados reais"},{"type":"action","priority":"urgent|opportunity|suggestion","title":"título max 6 palavras","description":"contexto com métricas, max 2 frases","action_type":"pause_campaign|info_only","action_payload":{"campaign_name":"nome"},"status":"pending"}]}
-Foque em: frequência >3.5 (criativo saturado — pausar), CTR muito baixo (criativo ruim), identificar o criativo campeão (maior CTR).
-Dados: ${JSON.stringify(data)}
-Gere 1-2 mensagens e 1-2 ações. Responda APENAS o JSON.`,
+    prompt: (data, period) => `Você é Cris, especialista em criativos Meta Ads para "Essence Atrativos". Retorne APENAS JSON:
+{"messages":[{"type":"text","text":"análise de desempenho dos criativos em 2 frases com CTR e frequência reais"},{"type":"action","priority":"urgent|opportunity|suggestion","title":"título max 6 palavras","description":"contexto com métricas, max 2 frases","action_type":"pause_campaign|info_only","action_payload":{"campaign_name":"nome"},"status":"pending"}]}
+
+REGRAS:
+1. Criativo CAMPEÃO (maior CTR): destaque e diga para manter e replicar o estilo
+2. Frequência>3.5: criativo saturado — sugira novo criativo, não necessariamente pausar
+3. CTR<0.8%: criativo fraco — sugira revisar imagem e texto
+4. Campanhas em aprendizado (gasto baixo): não critique o CTR ainda — precisam de mais dados
+5. Identifique padrões: o que os melhores criativos têm em comum (formato, linguagem, oferta)
+
+Período: ${period}. Dados: ${JSON.stringify(data)}
+Gere 1-2 textos e 1-2 ações. Responda APENAS o JSON.`,
   },
   rex: {
     name: 'Rex', role: 'Gerador de Relatórios',
-    prompt: (data) => `Você é Rex, especialista em relatórios de tráfego pago. Retorne APENAS JSON com um resumo executivo claro:
-{"messages":[{"type":"text","text":"parágrafo de resumo executivo, max 3 frases com números totais"},{"type":"text","text":"principais destaques positivos e negativos do período, max 3 frases"},{"type":"action","priority":"suggestion","title":"Relatório completo gerado","description":"Resumo do período com métricas consolidadas","action_type":"info_only","action_payload":{},"status":"pending"}]}
-Dados: ${JSON.stringify(data)}
-Seja direto e use os números reais. Responda APENAS o JSON.`,
+    prompt: (data, period) => `Você é Rex, especialista em relatórios executivos de tráfego pago para "Essence Atrativos". Retorne APENAS JSON:
+{"messages":[
+  {"type":"text","text":"RESUMO EXECUTIVO (3 frases): total gasto, total de conversas/leads, custo médio por conversa, comparação com benchmarks"},
+  {"type":"text","text":"DESTAQUES POSITIVOS: 2-3 campanhas que performaram bem com números reais"},
+  {"type":"text","text":"PONTOS DE ATENÇÃO: 2-3 campanhas ou métricas que precisam de ação com números reais"},
+  {"type":"text","text":"RECOMENDAÇÃO GERAL: 1-2 ações prioritárias para o próximo período"},
+  {"type":"action","priority":"suggestion","title":"📊 Relatório ${period} gerado","description":"Clique em Baixar para exportar o relatório completo em PDF","action_type":"download_report","action_payload":{"period":"${period}","total_spend":"${data.account?.spend || 0}","total_campaigns":${(data.campaigns||[]).length}},"status":"pending"}
+]}
+Período: ${period}. Dados completos: ${JSON.stringify(data)}
+Use números reais. Seja direto e executivo. Responda APENAS o JSON.`,
   },
   ada: {
     name: 'Ada', role: 'Criadora de Anúncios',
-    prompt: (data) => `Você é Ada, copywriter especialista em anúncios Meta Ads para WhatsApp. Retorne APENAS JSON com sugestões de copy:
-{"messages":[{"type":"text","text":"análise do que está funcionando e o estilo de copy ideal, max 2 frases"},{"type":"text","text":"sugestão de texto de anúncio pronto para usar: headline + corpo + CTA"},{"type":"action","priority":"suggestion","title":"Copy A/B gerado","description":"2 variações de anúncio prontas para testar","action_type":"info_only","action_payload":{},"status":"pending"}]}
-Baseie-se nos dados das campanhas que performam melhor. Dados: ${JSON.stringify(data)}
+    prompt: (data, period) => `Você é Ada, especialista em copy para Meta Ads, trabalhando para "Essence Atrativos".
+
+MUITO IMPORTANTE: Analise os nomes REAIS das campanhas abaixo para entender os produtos/serviços anunciados. Crie copies BASEADAS nos produtos reais que aparecem nos nomes das campanhas. NÃO invente produtos que não existam nos dados.
+
+Retorne APENAS JSON:
+{"messages":[
+  {"type":"text","text":"análise: quais produtos estão nas campanhas ativas, qual linguagem está gerando mais engajamento, CTAs que funcionam"},
+  {"type":"text","text":"COPY A — baseada na campanha com melhor performance:\\nHeadline: [headline impactante do produto real]\\nTexto: [copy completa 3-4 linhas]\\nCTA: Chame no WhatsApp"},
+  {"type":"action","priority":"opportunity","title":"Criar campanha com Copy A","description":"Campanha pausada pronta para adicionar criativo e publicar","action_type":"create_campaign","action_payload":{"campaign_name":"[nome baseado no produto real] — Copy A","objective":"OUTCOME_LEADS","daily_budget_brl":30,"copy_headline":"[headline]","copy_body":"[texto completo]","cta_type":"SEND_MESSAGE","base_campaign_id":"[id da campanha com melhor ROAS ou CTR]"},"status":"pending"},
+  {"type":"text","text":"COPY B — variação de ângulo diferente:\\nHeadline: [headline alternativa]\\nTexto: [copy variante]\\nCTA: Chame no WhatsApp"},
+  {"type":"action","priority":"suggestion","title":"Criar campanha com Copy B","description":"Variação para teste A/B — compare com Copy A","action_type":"create_campaign","action_payload":{"campaign_name":"[nome produto] — Copy B","objective":"OUTCOME_LEADS","daily_budget_brl":30,"copy_headline":"[headline B]","copy_body":"[texto B]","cta_type":"SEND_MESSAGE","base_campaign_id":"[mesmo id]"},"status":"pending"}
+]}
+Período: ${period}. Dados reais das campanhas ativas: ${JSON.stringify(data)}
 Responda APENAS o JSON.`,
   },
   cleo: {
     name: 'Cleo', role: 'Diretora de Criativos',
-    prompt: (data) => `Você é Cleo, diretora de criativos especialista em vídeo para Meta Ads. Retorne APENAS JSON com um brief de vídeo:
-{"messages":[{"type":"text","text":"análise do que o público está respondendo, max 2 frases com dados"},{"type":"text","text":"brief completo: gancho (0-3s), desenvolvimento (3-15s), CTA (15-30s) — seja específico e criativo"},{"type":"action","priority":"suggestion","title":"Brief de vídeo gerado","description":"Roteiro completo pronto para gravar","action_type":"info_only","action_payload":{},"status":"pending"}]}
-Dados das campanhas ativas: ${JSON.stringify(data)}
+    prompt: (data, period) => `Você é Cleo, diretora de criativos para Meta Ads, trabalhando para "Essence Atrativos".
+
+MUITO IMPORTANTE: Analise os nomes REAIS das campanhas para identificar os produtos anunciados. Crie briefs de vídeo BASEADOS nesses produtos reais. NÃO invente produtos.
+
+Retorne APENAS JSON:
+{"messages":[
+  {"type":"text","text":"análise: quais produtos aparecem nas campanhas, qual público está respondendo melhor (baseado em CTR e conversas), qual formato/tom funciona"},
+  {"type":"text","text":"BRIEF DO VÍDEO — [nome do produto real da campanha com melhor performance]:\\n\\n⏱️ 0-3s GANCHO: [frase de impacto específica para o produto]\\n⏱️ 3-15s DESENVOLVIMENTO: [demonstração/benefício do produto real]\\n⏱️ 15-30s CTA: [chamada para WhatsApp]\\n\\n📝 ROTEIRO COMPLETO:\\n[roteiro palavra a palavra baseado no produto e nos dados das campanhas]\\n\\n🎬 DICAS DE GRAVAÇÃO: [instruções específicas para esse produto]"},
+  {"type":"action","priority":"suggestion","title":"Brief de vídeo pronto","description":"Roteiro completo baseado nas campanhas com melhor CTR","action_type":"info_only","action_payload":{},"status":"pending"}
+]}
+Período: ${period}. Dados reais das campanhas ativas: ${JSON.stringify(data)}
 Responda APENAS o JSON.`,
   },
 };
@@ -516,28 +562,52 @@ function loadAgentsData() {
 
 function saveAgentsData(data) { writeFileSync(agentsFile, JSON.stringify(data, null, 2)); }
 
-async function runAgentAnalysis(agentId, apiKey) {
+async function runAgentAnalysis(agentId, apiKey, period) {
   apiKey = apiKey || process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return { ok: false, msg: 'ANTHROPIC_API_KEY não configurada' };
+
+  // Montar parâmetro de data
+  const periodLabel = period || 'last_7d';
+  let dateParam;
+  if (period && period.includes('|')) {
+    const [since, until] = period.split('|');
+    dateParam = `time_range=${encodeURIComponent(JSON.stringify({ since, until }))}`;
+  } else {
+    dateParam = `date_preset=${periodLabel}`;
+  }
+
+  // Filtrar apenas campanhas ativas (effective_status=ACTIVE)
+  const activeFilter = encodeURIComponent(JSON.stringify([{ field: 'effective_status', operator: 'IN', value: ['ACTIVE'] }]));
 
   const agents = loadAgentsData();
   agents[agentId] = { ...agents[agentId], status: 'working' };
   saveAgentsData(agents);
 
   try {
-    const campData = await metaGet(`${BASE}/act_${ACC_ID}/insights?fields=campaign_id,campaign_name,spend,impressions,reach,clicks,ctr,cpc,cpm,frequency,actions,purchase_roas&date_preset=last_7d&level=campaign&limit=50&access_token=${META_TOKEN}`);
-    const acctData = await metaGet(`${BASE}/act_${ACC_ID}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach,frequency&date_preset=last_7d&level=account&access_token=${META_TOKEN}`);
+    const fields = 'campaign_id,campaign_name,spend,impressions,reach,clicks,ctr,cpc,cpm,frequency,actions,purchase_roas,date_start,date_stop';
+    const [campData, acctData] = await Promise.all([
+      metaGet(`${BASE}/act_${ACC_ID}/insights?fields=${fields}&${dateParam}&filtering=${activeFilter}&level=campaign&limit=50&access_token=${META_TOKEN}`),
+      metaGet(`${BASE}/act_${ACC_ID}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach,frequency&${dateParam}&level=account&access_token=${META_TOKEN}`),
+    ]);
+
+    // Somente campanhas ativas que gastaram no período
+    const activeCampaigns = (campData.data || [])
+      .filter(c => parseFloat(c.spend || 0) > 0)
+      .sort((a, b) => parseFloat(b.spend || 0) - parseFloat(a.spend || 0))
+      .slice(0, 12);
 
     const payload = {
+      periodo: periodLabel,
       account: acctData.data?.[0] || {},
-      campaigns: (campData.data || []).filter(c => parseFloat(c.spend || 0) > 0).slice(0, 10),
+      campaigns: activeCampaigns,
+      total_campanhas_ativas: activeCampaigns.length,
     };
 
     const def = AGENT_DEFS[agentId];
     const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1200, messages: [{ role: 'user', content: def.prompt(payload) }] }),
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1800, messages: [{ role: 'user', content: def.prompt(payload, periodLabel) }] }),
     });
 
     if (!aiResp.ok) throw new Error(`Anthropic ${aiResp.status}`);
@@ -546,7 +616,13 @@ async function runAgentAnalysis(agentId, apiKey) {
     if (!rawText.startsWith('{')) rawText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
     const parsed = JSON.parse(rawText);
 
-    agents[agentId] = { status: 'ready', generated_at: new Date().toISOString(), messages: parsed.messages || [] };
+    agents[agentId] = {
+      status: 'ready',
+      generated_at: new Date().toISOString(),
+      period: periodLabel,
+      messages: parsed.messages || [],
+      raw_data: payload,
+    };
     saveAgentsData(agents);
     return { ok: true };
   } catch (e) {
@@ -584,9 +660,64 @@ app.post('/api/agents/:id/analyze', async (req, res) => {
   const { id } = req.params;
   if (!AGENT_DEFS[id]) return res.status(404).json({ error: 'Agente não encontrado' });
   const apiKey = req.headers['x-anthropic-key'] || process.env.ANTHROPIC_API_KEY;
-  const result = await runAgentAnalysis(id, apiKey);
+  const { period } = req.body || {};
+  const result = await runAgentAnalysis(id, apiKey, period);
   if (!result.ok) return res.status(500).json({ error: result.msg });
   res.json(loadAgentsData());
+});
+
+// ── POST /api/agents/ada/create-campaign ─────────────────────────────────────
+app.post('/api/agents/ada/create-campaign', async (req, res) => {
+  const { campaign_name, objective, daily_budget_brl, copy_headline, copy_body, cta_type, base_campaign_id } = req.body;
+  if (!campaign_name || !copy_body) return res.status(400).json({ ok: false, error: 'campaign_name e copy_body são obrigatórios' });
+  if (!META_TOKEN) return res.status(400).json({ ok: false, error: 'META_TOKEN não configurado' });
+
+  try {
+    const post = async (url, params) => {
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ ...params, access_token: META_TOKEN }) });
+      return r.json();
+    };
+
+    // 1. Buscar targeting da campanha base (se fornecido)
+    let targeting = { geo_locations: { countries: ['BR'] }, age_min: 18, age_max: 65 };
+    if (base_campaign_id) {
+      const adsets = await metaGet(`${BASE}/act_${ACC_ID}/adsets?fields=targeting&filtering=${encodeURIComponent(JSON.stringify([{field:'campaign_id',operator:'EQUAL',value:base_campaign_id}]))}&limit=1&access_token=${META_TOKEN}`);
+      if (adsets.data?.[0]?.targeting) targeting = adsets.data[0].targeting;
+    }
+
+    // 2. Criar campanha (PAUSADA)
+    const camp = await post(`${BASE}/act_${ACC_ID}/campaigns`, {
+      name: campaign_name,
+      objective: objective || 'OUTCOME_LEADS',
+      status: 'PAUSED',
+      special_ad_categories: '[]',
+    });
+    if (camp.error) throw new Error(camp.error.message);
+
+    // 3. Criar conjunto de anúncios (PAUSADO)
+    const adset = await post(`${BASE}/act_${ACC_ID}/adsets`, {
+      name: `${campaign_name} — Conjunto`,
+      campaign_id: camp.id,
+      daily_budget: Math.round((daily_budget_brl || 30) * 100),
+      optimization_goal: 'LEAD_GENERATION',
+      billing_event: 'IMPRESSIONS',
+      targeting: JSON.stringify(targeting),
+      status: 'PAUSED',
+    });
+    if (adset.error) throw new Error(adset.error.message);
+
+    const adsManagerUrl = `https://www.facebook.com/adsmanager/manage/campaigns?act=${ACC_ID}&selected_campaign_ids=${camp.id}`;
+
+    res.json({
+      ok: true,
+      campaign_id: camp.id,
+      adset_id: adset.id,
+      ads_manager_url: adsManagerUrl,
+      message: `Campanha "${campaign_name}" criada em modo PAUSADO. Acesse o Gerenciador de Anúncios para adicionar o criativo e publicar.`,
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 // ── POST /api/agents/:id/action ───────────────────────────────────────────────
