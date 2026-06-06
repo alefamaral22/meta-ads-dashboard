@@ -725,7 +725,6 @@ fetch('/api/data')
     document.getElementById('footer-ts').textContent = `Dashboard gerado em ${new Date(raw.timestamp).toLocaleString('pt-BR')} • Meta Graph API v21.0`;
 
     const mainAcc = raw.adAccounts?.find(a => !a.error && (a.insights_campaigns_max || []).length > 0);
-    if (mainAcc) currentAccountId = mainAcc.id;
     buildAccountChips(raw.adAccounts);
     const allCampIns = mainAcc?.insights_campaigns_max || [];
     const monthly = mainAcc?.insights_monthly || [];
@@ -928,7 +927,7 @@ const PRESET_LABELS = {
 };
 
 let activeCharts = {};  // guarda instâncias para destruir antes de recriar
-let currentAccountId = '226773313101799'; // conta padrão — Essence Atrativos 2
+let currentAccountId = localStorage.getItem('cfg_acc_id') || '';
 
 function destroyCharts(...ids) {
   ids.forEach(id => { if (activeCharts[id]) { activeCharts[id].destroy(); delete activeCharts[id]; } });
@@ -1383,7 +1382,11 @@ async function gerarRecs() {
   btn.textContent = '⏳ Gerando…';
   if (metaEl) metaEl.textContent = 'Buscando dados e analisando com IA…';
   try {
-    const r = await fetch('/api/recs/generate', { method: 'POST' });
+    const accId = localStorage.getItem('cfg_acc_id') || '';
+    const r = await fetch('/api/recs/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(accId ? { 'x-acc-id': accId } : {}) },
+    });
     const d = await r.json();
     if (d.ok && d.data?.recs) {
       renderRecList(d.data.recs);
@@ -1795,7 +1798,7 @@ async function importCsv() {
     : `⚠️ ${ok} enviada${ok!==1?'s':''} com sucesso · ${fail} com falha`;
   el.style.display = 'block';
   document.getElementById('btn-import').disabled = false;
-  if (ok > 0) loadSales();
+  if (ok > 0) carregarLog();
 }
 
 // Drag & drop

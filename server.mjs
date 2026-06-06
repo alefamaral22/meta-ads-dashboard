@@ -121,7 +121,14 @@ function agendarProximoRefresh() {
 agendarProximoRefresh();
 
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.static(__dirname, {
+  etag: false,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-store');
+    }
+  }
+}));
 
 app.get('/meta-dashboard', (req, res) => res.redirect('/meta-dashboard.html'));
 app.get('/vendas', (req, res) => res.redirect('/vendas.html'));
@@ -312,7 +319,8 @@ app.post('/api/sale/test', async (req, res) => {
 });
 
 // ── Recomendações com IA (Claude Haiku) ──────────────────────────────────────
-async function generateRecommendations() {
+async function generateRecommendations(accountId) {
+  const actId = /^\d+$/.test(accountId || '') ? accountId : ACC_ID;
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     console.log('[RECS] ANTHROPIC_API_KEY não encontrada — pulando IA.');
@@ -323,8 +331,8 @@ async function generateRecommendations() {
   try {
     const fields = 'campaign_name,spend,impressions,clicks,ctr,cpc,cpm,frequency,reach,actions';
     const [campResp, acctResp] = await Promise.all([
-      metaGet(`${BASE}/act_${ACC_ID}/insights?fields=${fields}&date_preset=last_30d&level=campaign&limit=100&access_token=${META_TOKEN}`),
-      metaGet(`${BASE}/act_${ACC_ID}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach,frequency&date_preset=last_30d&level=account&access_token=${META_TOKEN}`),
+      metaGet(`${BASE}/act_${actId}/insights?fields=${fields}&date_preset=last_30d&level=campaign&limit=100&access_token=${META_TOKEN}`),
+      metaGet(`${BASE}/act_${actId}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach,frequency&date_preset=last_30d&level=account&access_token=${META_TOKEN}`),
     ]);
 
     if (campResp.error) throw new Error('Meta API: ' + campResp.error.message);
@@ -390,7 +398,7 @@ Priorize problemas reais > oportunidades de escala > melhorias gerais. Use os n�
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'claude-haiku-4-5',
         max_tokens: 1800,
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -435,7 +443,8 @@ app.get('/api/recs', (req, res) => {
 
 // ── POST /api/recs/generate ───────────────────────────────────────────────────
 app.post('/api/recs/generate', async (req, res) => {
-  const result = await generateRecommendations();
+  const accountId = req.headers['x-acc-id'] || req.body?.accountId;
+  const result = await generateRecommendations(accountId);
   if (result.ok && existsSync(recsFile)) {
     res.json({ ...result, data: JSON.parse(readFileSync(recsFile, 'utf8')) });
   } else {
@@ -562,9 +571,10 @@ function loadAgentsData() {
 
 function saveAgentsData(data) { writeFileSync(agentsFile, JSON.stringify(data, null, 2)); }
 
-async function runAgentAnalysis(agentId, apiKey, period) {
+async function runAgentAnalysis(agentId, apiKey, period, accountId) {
   apiKey = apiKey || process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return { ok: false, msg: 'ANTHROPIC_API_KEY não configurada' };
+  const actId = /^\d+$/.test(accountId || '') ? accountId : ACC_ID;
 
   // Montar parâmetro de data
   const periodLabel = period || 'last_7d';
@@ -583,8 +593,8 @@ async function runAgentAnalysis(agentId, apiKey, period) {
   try {
     const fields = 'campaign_id,campaign_name,spend,impressions,reach,clicks,ctr,cpc,cpm,frequency,actions,purchase_roas,date_start,date_stop';
     const [campData, acctData] = await Promise.all([
-      metaGet(`${BASE}/act_${ACC_ID}/insights?fields=${fields}&${dateParam}&level=campaign&limit=100&access_token=${META_TOKEN}`),
-      metaGet(`${BASE}/act_${ACC_ID}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach,frequency&${dateParam}&level=account&access_token=${META_TOKEN}`),
+      metaGet(`${BASE}/act_${actId}/insights?fields=${fields}&${dateParam}&level=campaign&limit=100&access_token=${META_TOKEN}`),
+      metaGet(`${BASE}/act_${actId}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach,frequency&${dateParam}&level=account&access_token=${META_TOKEN}`),
     ]);
 
     // Campanhas que tiveram entrega no período (spend > 0 = estavam ativas)
@@ -604,7 +614,7 @@ async function runAgentAnalysis(agentId, apiKey, period) {
     const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1800, messages: [{ role: 'user', content: def.prompt(payload, periodLabel) }] }),
+      body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 1800, messages: [{ role: 'user', content: def.prompt(payload, periodLabel) }] }),
     });
 
     if (!aiResp.ok) throw new Error(`Anthropic ${aiResp.status}`);
@@ -657,8 +667,9 @@ app.post('/api/agents/:id/analyze', async (req, res) => {
   const { id } = req.params;
   if (!AGENT_DEFS[id]) return res.status(404).json({ error: 'Agente não encontrado' });
   const apiKey = req.headers['x-anthropic-key'] || process.env.ANTHROPIC_API_KEY;
+  const accountId = req.headers['x-acc-id'] || req.body?.accountId;
   const { period } = req.body || {};
-  const result = await runAgentAnalysis(id, apiKey, period);
+  const result = await runAgentAnalysis(id, apiKey, period, accountId);
   if (!result.ok) return res.status(500).json({ error: result.msg });
   res.json(loadAgentsData());
 });
