@@ -974,7 +974,10 @@ async function loadInsights({ preset, since, until }) {
   const banner = document.getElementById('api-error-banner');
   const bannerMsg = document.getElementById('api-error-msg');
   try {
-    const resp = await fetch(url);
+    const metaToken = cfgGet('metaToken');
+    const resp = await fetch(url, {
+      headers: metaToken ? { 'x-meta-token': metaToken, 'x-acc-id': currentAccountId || '' } : {}
+    });
     const data = await resp.json();
     if (data.error) {
       const isToken = /Session has expired|OAuthException|access token/i.test(data.error);

@@ -150,8 +150,10 @@ const INSIGHT_FIELDS = [
 app.get('/api/insights', async (req, res) => {
   try {
     const { preset, since, until, accountId } = req.query;
-    // Aceitar qualquer conta numérica válida; fallback para conta principal
     const actId = /^\d+$/.test(accountId || '') ? accountId : ACC_ID;
+    const token = req.headers['x-meta-token'] || META_TOKEN;
+
+    if (!token) return res.status(400).json({ error: 'META_TOKEN não configurado. Configure o token na aba ⚙️ Configurações.' });
 
     let dateParam;
     if (since && until) {
@@ -161,9 +163,9 @@ app.get('/api/insights', async (req, res) => {
     }
 
     const [campIns, acctIns, trendIns] = await Promise.all([
-      metaGet(`${BASE}/act_${actId}/insights?fields=${INSIGHT_FIELDS}&${dateParam}&level=campaign&limit=200&access_token=${META_TOKEN}`),
-      metaGet(`${BASE}/act_${actId}/insights?fields=${INSIGHT_FIELDS}&${dateParam}&level=account&access_token=${META_TOKEN}`),
-      metaGet(`${BASE}/act_${actId}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach,date_start,date_stop&${dateParam}&level=account&time_increment=1&access_token=${META_TOKEN}`),
+      metaGet(`${BASE}/act_${actId}/insights?fields=${INSIGHT_FIELDS}&${dateParam}&level=campaign&limit=200&access_token=${token}`),
+      metaGet(`${BASE}/act_${actId}/insights?fields=${INSIGHT_FIELDS}&${dateParam}&level=account&access_token=${token}`),
+      metaGet(`${BASE}/act_${actId}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach,date_start,date_stop&${dateParam}&level=account&time_increment=1&access_token=${token}`),
     ]);
 
     // Surface Meta API errors clearly instead of silently returning empty data
