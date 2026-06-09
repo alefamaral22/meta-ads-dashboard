@@ -792,16 +792,27 @@ app.post('/api/agents/:id/action', async (req, res) => {
         let curBudget = p.current_budget ? parseInt(p.current_budget) : null;
 
         if (!targetId && p.campaign_id) {
-          // Busca o primeiro conjunto de anúncios da campanha para obter ID e orçamento atual
+          // Busca adsets direto pelo endpoint da campanha (mais confiável que filtering)
           const adsetsResp = await metaGet(
-            `${BASE}/act_${accId}/adsets?fields=id,daily_budget,lifetime_budget` +
-            `&filtering=${encodeURIComponent(JSON.stringify([{field:'campaign_id',operator:'EQUAL',value:p.campaign_id}]))}` +
-            `&limit=10&access_token=${token}`
+            `${BASE}/${p.campaign_id}/adsets?fields=id,daily_budget,lifetime_budget&access_token=${token}`
           );
           const firstAdset = adsetsResp.data?.[0];
-          if (!firstAdset) throw new Error('Nenhum conjunto encontrado para esta campanha');
-          targetId  = firstAdset.id;
-          curBudget = curBudget || parseInt(firstAdset.daily_budget || firstAdset.lifetime_budget || 0);
+          if (firstAdset && (firstAdset.daily_budget || firstAdset.lifetime_budget)) {
+            // Orçamento no conjunto (padrão)
+            targetId  = firstAdset.id;
+            curBudget = curBudget || parseInt(firstAdset.daily_budget || firstAdset.lifetime_budget || 0);
+          } else {
+            // CBO: orçamento está na campanha, não no conjunto
+            const campResp = await metaGet(
+              `${BASE}/${p.campaign_id}?fields=daily_budget,lifetime_budget&access_token=${token}`
+            );
+            if (campResp.daily_budget || campResp.lifetime_budget) {
+              targetId  = p.campaign_id;
+              curBudget = curBudget || parseInt(campResp.daily_budget || campResp.lifetime_budget || 0);
+            } else {
+              throw new Error('Orçamento não encontrado nem no conjunto nem na campanha. Verifique se a campanha está ativa.');
+            }
+          }
         }
 
         if (!targetId) throw new Error('ID do conjunto de anúncios não encontrado');
