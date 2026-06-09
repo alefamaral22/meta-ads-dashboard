@@ -323,8 +323,9 @@ app.post('/api/sale/test', async (req, res) => {
 });
 
 // ── Recomendações com IA (Claude Haiku) ──────────────────────────────────────
-async function generateRecommendations(accountId) {
+async function generateRecommendations(accountId, metaToken) {
   const actId = /^\d+$/.test(accountId || '') ? accountId : ACC_ID;
+  const token = metaToken || META_TOKEN;
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     console.log('[RECS] ANTHROPIC_API_KEY não encontrada — pulando IA.');
@@ -335,8 +336,8 @@ async function generateRecommendations(accountId) {
   try {
     const fields = 'campaign_name,spend,impressions,clicks,ctr,cpc,cpm,frequency,reach,actions';
     const [campResp, acctResp] = await Promise.all([
-      metaGet(`${BASE}/act_${actId}/insights?fields=${fields}&date_preset=last_30d&level=campaign&limit=100&access_token=${META_TOKEN}`),
-      metaGet(`${BASE}/act_${actId}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach,frequency&date_preset=last_30d&level=account&access_token=${META_TOKEN}`),
+      metaGet(`${BASE}/act_${actId}/insights?fields=${fields}&date_preset=last_30d&level=campaign&limit=100&access_token=${token}`),
+      metaGet(`${BASE}/act_${actId}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach,frequency&date_preset=last_30d&level=account&access_token=${token}`),
     ]);
 
     if (campResp.error) throw new Error('Meta API: ' + campResp.error.message);
@@ -447,8 +448,9 @@ app.get('/api/recs', (req, res) => {
 
 // ── POST /api/recs/generate ───────────────────────────────────────────────────
 app.post('/api/recs/generate', async (req, res) => {
-  const accountId = req.headers['x-acc-id'] || req.body?.accountId;
-  const result = await generateRecommendations(accountId);
+  const accountId  = req.headers['x-acc-id']     || req.body?.accountId;
+  const metaToken  = req.headers['x-meta-token'] || META_TOKEN;
+  const result = await generateRecommendations(accountId, metaToken);
   if (result.ok && existsSync(recsFile)) {
     res.json({ ...result, data: JSON.parse(readFileSync(recsFile, 'utf8')) });
   } else {
@@ -575,10 +577,11 @@ function loadAgentsData() {
 
 function saveAgentsData(data) { writeFileSync(agentsFile, JSON.stringify(data, null, 2)); }
 
-async function runAgentAnalysis(agentId, apiKey, period, accountId) {
+async function runAgentAnalysis(agentId, apiKey, period, accountId, metaToken) {
   apiKey = apiKey || process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return { ok: false, msg: 'ANTHROPIC_API_KEY não configurada' };
   const actId = /^\d+$/.test(accountId || '') ? accountId : ACC_ID;
+  const token = metaToken || META_TOKEN;
 
   // Montar parâmetro de data
   const periodLabel = period || 'last_7d';
@@ -597,8 +600,8 @@ async function runAgentAnalysis(agentId, apiKey, period, accountId) {
   try {
     const fields = 'campaign_id,campaign_name,spend,impressions,reach,clicks,ctr,cpc,cpm,frequency,actions,purchase_roas,date_start,date_stop';
     const [campData, acctData] = await Promise.all([
-      metaGet(`${BASE}/act_${actId}/insights?fields=${fields}&${dateParam}&level=campaign&limit=100&access_token=${META_TOKEN}`),
-      metaGet(`${BASE}/act_${actId}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach,frequency&${dateParam}&level=account&access_token=${META_TOKEN}`),
+      metaGet(`${BASE}/act_${actId}/insights?fields=${fields}&${dateParam}&level=campaign&limit=100&access_token=${token}`),
+      metaGet(`${BASE}/act_${actId}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach,frequency&${dateParam}&level=account&access_token=${token}`),
     ]);
 
     // Campanhas que tiveram entrega no período (spend > 0 = estavam ativas)
@@ -670,10 +673,11 @@ app.get('/api/agents/status', (req, res) => res.json(loadAgentsData()));
 app.post('/api/agents/:id/analyze', async (req, res) => {
   const { id } = req.params;
   if (!AGENT_DEFS[id]) return res.status(404).json({ error: 'Agente não encontrado' });
-  const apiKey = req.headers['x-anthropic-key'] || process.env.ANTHROPIC_API_KEY;
-  const accountId = req.headers['x-acc-id'] || req.body?.accountId;
+  const apiKey   = req.headers['x-anthropic-key'] || process.env.ANTHROPIC_API_KEY;
+  const accountId = req.headers['x-acc-id']       || req.body?.accountId;
+  const metaToken = req.headers['x-meta-token']   || META_TOKEN;
   const { period } = req.body || {};
-  const result = await runAgentAnalysis(id, apiKey, period, accountId);
+  const result = await runAgentAnalysis(id, apiKey, period, accountId, metaToken);
   if (!result.ok) return res.status(500).json({ error: result.msg });
   res.json(loadAgentsData());
 });

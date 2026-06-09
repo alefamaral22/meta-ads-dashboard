@@ -1118,14 +1118,16 @@ async function runAnalysis(period) {
   area.innerHTML = renderLoading(activeAgent);
 
   try {
-    const storedKey = localStorage.getItem('cfg_anthropic_key') || '';
-    const storedAccId = localStorage.getItem('cfg_acc_id') || '';
+    const storedKey     = localStorage.getItem('cfg_anthropic_key') || '';
+    const storedAccId   = localStorage.getItem('cfg_acc_id') || '';
+    const storedMetaTok = localStorage.getItem('cfg_meta_token') || '';
     const r = await fetch(`/api/agents/${activeAgent.id}/analyze`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(storedKey ? { 'x-anthropic-key': storedKey } : {}),
-        ...(storedAccId ? { 'x-acc-id': storedAccId } : {}),
+        ...(storedKey     ? { 'x-anthropic-key': storedKey     } : {}),
+        ...(storedAccId   ? { 'x-acc-id':         storedAccId   } : {}),
+        ...(storedMetaTok ? { 'x-meta-token':      storedMetaTok } : {}),
       },
       body: JSON.stringify({ period }),
     });

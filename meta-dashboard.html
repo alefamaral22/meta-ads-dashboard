@@ -1431,10 +1431,15 @@ async function gerarRecs() {
   btn.textContent = '⏳ Gerando…';
   if (metaEl) metaEl.textContent = 'Buscando dados e analisando com IA…';
   try {
-    const accId = localStorage.getItem('cfg_acc_id') || '';
+    const accId    = localStorage.getItem('cfg_acc_id') || '';
+    const metaTok  = cfgGet('metaToken') || '';
     const r = await fetch('/api/recs/generate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(accId ? { 'x-acc-id': accId } : {}) },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accId   ? { 'x-acc-id':     accId   } : {}),
+        ...(metaTok ? { 'x-meta-token': metaTok } : {}),
+      },
     });
     const d = await r.json();
     if (d.ok && d.data?.recs) {
