@@ -1,0 +1,42 @@
+name: time-de-trafego-pago
+version: 1.0.0
+description: Time completo de tráfego pago para Meta Ads — análise, revisão de criativos, otimização de orçamento, relatórios e criação de anúncios.
+author: thiagoskiante
+created: 2026-03-06
+
+meta:
+  platform: meta-ads
+  api: facebook-marketing-api-v19
+  requires_env:
+    - META_ACCESS_TOKEN
+    - META_AD_ACCOUNT_ID
+
+agents:
+  lead: traffic-analyst
+  members:
+    - traffic-analyst
+    - creative-reviewer
+    - budget-optimizer
+    - report-writer
+    - ad-creator
+
+tasks:
+  - analyze-campaigns
+  - review-creatives
+  - optimize-budget
+  - generate-report
+  - create-ad-copy
+
+workflows:
+  - full-audit
+
+dependencies:
+  internal:
+    - instagram-api  # reutiliza token Meta já configurado
+  npm:
+    - axios
+
+integration:
+  token_source: SynkraAI/aios-core/squads/aios-squads/packages/instagram-api/.env
+  token_key: INSTAGRAM_ACCESS_TOKEN
+  note: O mesmo token Meta serve para Ads API se tiver permissao ads_read e ads_management

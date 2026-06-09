@@ -1,0 +1,11 @@
+{
+  "name": "centraliza-ai-video",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes hyperframes@0.6.74 preview",
+    "check": "npx --yes hyperframes@0.6.74 lint && npx --yes hyperframes@0.6.74 validate && npx --yes hyperframes@0.6.74 inspect",
+    "render": "npx --yes hyperframes@0.6.74 render",
+    "publish": "npx --yes hyperframes@0.6.74 publish"
+  }
+}

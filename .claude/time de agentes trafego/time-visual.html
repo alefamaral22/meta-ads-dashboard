@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Time de Tráfego Pago — AIOS</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0a0a1a;
+      color: #fff;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* HEADER */
+    header {
+      text-align: center;
+      padding: 48px 24px 24px;
+    }
+    header h1 {
+      font-size: 2.4rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, #6c63ff, #ff6584, #43e97b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header p {
+      color: #888;
+      margin-top: 8px;
+      font-size: 1rem;
+    }
+
+    /* INSTRUCAO */
+    .hint {
+      text-align: center;
+      color: #555;
+      font-size: 0.85rem;
+      margin-bottom: 32px;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+
+    /* GRID DE CARDS */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    .card {
+      background: #12122a;
+      border: 1px solid #222;
+      border-radius: 20px;
+      padding: 28px 24px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s ease;
+    }
+    .card:hover {
+      transform: translateY(-6px);
+      border-color: var(--accent);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 20px var(--glow);
+    }
+    .card:hover::before { transform: scaleX(1); }
+    .card.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 30px var(--glow);
+    }
+    .card.active::before { transform: scaleX(1); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .icon-box {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: var(--accent-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      flex-shrink: 0;
+    }
+    .card-name { font-size: 1.3rem; font-weight: 700; }
+    .card-title { font-size: 0.78rem; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; }
+
+    .card-desc {
+      color: #aaa;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    /* TAGS */
+    .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .tag {
+      background: var(--accent-light);
+      color: var(--accent);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    /* DETALHES (expandido) */
+    .details {
+      display: none;
+      margin-top: 16px;
+      border-top: 1px solid #222;
+      padding-top: 16px;
+      animation: fadeIn 0.3s ease;
+    }
+    .card.active .details { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .details h4 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #555;
+      margin-bottom: 8px;
+    }
+
+    .cmd-list { list-style: none; }
+    .cmd-list li {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid #1a1a2e;
+      font-size: 0.85rem;
+      color: #ccc;
+    }
+    .cmd-list li:last-child { border-bottom: none; }
+    .cmd-name {
+      color: var(--accent);
+      font-family: monospace;
+      font-size: 0.8rem;
+      background: var(--accent-light);
+      padding: 2px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .metric {
+      background: #1a1a2e;
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+    }
+    .metric-val {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .metric-label {
+      font-size: 0.7rem;
+      color: #666;
+      margin-top: 2px;
+    }
+
+    /* WORKFLOW SECTION */
+    .workflow-section {
+      max-width: 1100px;
+      margin: 0 auto 80px;
+      padding: 0 24px;
+    }
+    .workflow-section h2 {
+      text-align: center;
+      font-size: 1.4rem;
+      margin-bottom: 32px;
+      color: #888;
+    }
+
+    .flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0;
+    }
+
+    .flow-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      cursor: default;
+    }
+    .flow-bubble {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      border: 2px solid #333;
+      transition: all 0.3s;
+      position: relative;
+    }
+    .flow-step:hover .flow-bubble {
+      transform: scale(1.15);
+      border-color: var(--c);
+      box-shadow: 0 0 20px var(--c);
+    }
+    .flow-label {
+      font-size: 0.72rem;
+      color: #666;
+      text-align: center;
+      max-width: 80px;
+    }
+    .flow-arrow {
+      font-size: 1.5rem;
+      color: #333;
+      margin: 0 4px;
+      padding-bottom: 24px;
+    }
+
+    /* QUIZ */
+    .quiz-section {
+      max-width: 700px;
+      margin: 0 auto 80px;
+      padding: 0 24px;
+      text-align: center;
+    }
+    .quiz-section h2 {
+      font-size: 1.4rem;
+      margin-bottom: 8px;
+    }
+    .quiz-section p { color: #666; margin-bottom: 32px; }
+
+    .quiz-box {
+      background: #12122a;
+      border: 1px solid #222;
+      border-radius: 20px;
+      padding: 32px;
+    }
+    .quiz-question {
+      font-size: 1.1rem;
+      margin-bottom: 24px;
+      min-height: 48px;
+      line-height: 1.5;
+    }
+    .quiz-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .quiz-btn {
+      background: #1a1a2e;
+      border: 1px solid #333;
+      color: #ccc;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+    }
+    .quiz-btn:hover { border-color: #6c63ff; color: #fff; }
+    .quiz-btn.correct { background: #0d3b1e; border-color: #43e97b; color: #43e97b; }
+    .quiz-btn.wrong { background: #3b0d0d; border-color: #ff4d4d; color: #ff4d4d; }
+
+    .quiz-feedback {
+      margin-top: 20px;
+      font-size: 0.95rem;
+      min-height: 24px;
+      color: #aaa;
+    }
+    .quiz-score {
+      margin-top: 12px;
+      font-size: 0.8rem;
+      color: #555;
+    }
+    .quiz-next {
+      margin-top: 20px;
+      background: #6c63ff;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 28px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: none;
+      transition: opacity 0.2s;
+    }
+    .quiz-next:hover { opacity: 0.85; }
+
+    /* FOOTER */
+    footer {
+      text-align: center;
+      padding: 32px;
+      color: #333;
+      font-size: 0.8rem;
+    }
+
+    /* CORES POR AGENTE */
+    .trace  { --accent: #43e97b; --accent-light: #0d3b1e; --glow: rgba(67,233,123,0.15); }
+    .cris   { --accent: #f093fb; --accent-light: #2d0d2e; --glow: rgba(240,147,251,0.15); }
+    .buck   { --accent: #ffd700; --accent-light: #2e2600; --glow: rgba(255,215,0,0.15); }
+    .rex    { --accent: #4facfe; --accent-light: #0d2038; --glow: rgba(79,172,254,0.15); }
+    .ada    { --accent: #fa709a; --accent-light: #2e0d1a; --glow: rgba(250,112,154,0.15); }
+    .cleo   { --accent: #a78bfa; --accent-light: #1a0d38; --glow: rgba(167,139,250,0.15); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Time de Tráfego Pago</h1>
+  <p>Conheça os 6 agentes que gerenciam seus anúncios no Meta Ads</p>
+</header>
+
+<p class="hint">Clique em qualquer agente para ver os detalhes</p>
+
+<!-- CARDS -->
+<div class="grid">
+
+  <!-- TRACE -->
+  <div class="card trace" onclick="toggleCard(this)">
+    <div class="card-header">
+      <div class="icon-box">📊</div>
+      <div>
+        <div class="card-name">Trace</div>
+        <div class="card-title">Líder · Analista de Tráfego</div>
+      </div>
+    </div>
+    <p class="card-desc">Pega os dados brutos da Meta Ads e transforma em decisões claras. É o cérebro do time — analisa campanhas, identifica o que está funcionando e o que deve ser pausado.</p>
+    <div class="tags">
+      <span class="tag">CTR</span>
+      <span class="tag">ROAS</span>
+      <span class="tag">CPC</span>
+      <span class="tag">Frequência</span>
+    </div>
+    <div class="details">
+      <h4>Comandos</h4>
+      <ul class="cmd-list">
+        <li><span class="cmd-name">*analisar</span> Campanhas dos últimos 7 dias</li>
+        <li><span class="cmd-name">*top-campanhas</span> As 5 com melhor ROAS</li>
+        <li><span class="cmd-name">*piores-campanhas</span> O que pausar agora</li>
+        <li><span class="cmd-name">*analisar-periodo</span> Período customizado</li>
+      </ul>
+      <div class="metric-grid" style="margin-top:16px">
+        <div class="metric"><div class="metric-val">&gt;2%</div><div class="metric-label">CTR ideal</div></div>
+        <div class="metric"><div class="metric-val">&gt;3x</div><div class="metric-label">ROAS meta</div></div>
+        <div class="metric"><div class="metric-val">&lt;3</div><div class="metric-label">Frequência ok</div></div>
+        <div class="metric"><div class="metric-val">7d</div><div class="metric-label">Janela padrão</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CRIS -->
+  <div class="card cris" onclick="toggleCard(this)">
+    <div class="card-header">
+      <div class="icon-box">🎨</div>
+      <div>
+        <div class="card-name">Cris</div>
+        <div class="card-title">Revisora de Criativos</div>
+      </div>
+    </div>
+    <p class="card-desc">Analisa qual imagem, vídeo ou texto está performando melhor. Identifica criativos que estão "saturados" — quando o público já enjoou de ver o mesmo anúncio.</p>
+    <div class="tags">
+      <span class="tag">Imagens</span>
+      <span class="tag">Vídeos</span>
+      <span class="tag">Saturação</span>
+      <span class="tag">Engajamento</span>
+    </div>
+    <div class="details">
+      <h4>Comandos</h4>
+      <ul class="cmd-list">
+        <li><span class="cmd-name">*revisar-criativos</span> Performance de todos ativos</li>
+        <li><span class="cmd-name">*melhor-criativo</span> Melhor CTR e engajamento</li>
+        <li><span class="cmd-name">*criativos-saturados</span> Os que precisam ser trocados</li>
+      </ul>
+      <div class="metric-grid" style="margin-top:16px">
+        <div class="metric"><div class="metric-val">&gt;2%</div><div class="metric-label">CTR saudável</div></div>
+        <div class="metric"><div class="metric-val">&lt;2</div><div class="metric-label">Freq. saudável</div></div>
+        <div class="metric"><div class="metric-val">&gt;3</div><div class="metric-label">Freq. = trocar</div></div>
+        <div class="metric"><div class="metric-val">&lt;0.5%</div><div class="metric-label">CTR ruim</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUCK -->
+  <div class="card buck" onclick="toggleCard(this)">
+    <div class="card-header">
+      <div class="icon-box">💰</div>
+      <div>
+        <div class="card-name">Buck</div>
+        <div class="card-title">Otimizador de Orçamento</div>
+      </div>
+    </div>
+    <p class="card-desc">Garante que cada real investido gere o máximo de retorno. Escala campanhas lucrativas, pausa as que perdem dinheiro e distribui o orçamento de forma inteligente.</p>
+    <div class="tags">
+      <span class="tag">Escalagem</span>
+      <span class="tag">ROAS</span>
+      <span class="tag">Pausar perdas</span>
+    </div>
+    <div class="details">
+      <h4>Comandos</h4>
+      <ul class="cmd-list">
+        <li><span class="cmd-name">*analisar-orcamento</span> Visão geral da distribuição</li>
+        <li><span class="cmd-name">*escalar</span> Aumentar budget de campanha boa</li>
+        <li><span class="cmd-name">*pausar-perdas</span> ROAS negativo → pausar</li>
+        <li><span class="cmd-name">*redistribuir</span> Distribuição ideal do budget total</li>
+      </ul>
+      <div class="metric-grid" style="margin-top:16px">
+        <div class="metric"><div class="metric-val">70%</div><div class="metric-label">Top campanhas</div></div>
+        <div class="metric"><div class="metric-val">20%</div><div class="metric-label">Testes</div></div>
+        <div class="metric"><div class="metric-val">10%</div><div class="metric-label">Reserva</div></div>
+        <div class="metric"><div class="metric-val">+20%</div><div class="metric-label">Máx escalagem</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REX -->
+  <div class="card rex" onclick="toggleCard(this)">
+    <div class="card-header">
+      <div class="icon-box">📋</div>
+      <div>
+        <div class="card-name">Rex</div>
+        <div class="card-title">Gerador de Relatórios</div>
+      </div>
+    </div>
+    <p class="card-desc">Transforma dados complexos em relatórios claros que qualquer pessoa entende. Gera resumos semanais, mensais e executivos com KPIs, tendências e recomendações.</p>
+    <div class="tags">
+      <span class="tag">Semanal</span>
+      <span class="tag">Mensal</span>
+      <span class="tag">KPIs</span>
+      <span class="tag">Tendências</span>
+    </div>
+    <div class="details">
+      <h4>Comandos</h4>
+      <ul class="cmd-list">
+        <li><span class="cmd-name">*relatorio-semanal</span> Últimos 7 dias</li>
+        <li><span class="cmd-name">*relatorio-mensal</span> Últimos 30 dias</li>
+        <li><span class="cmd-name">*relatorio-periodo</span> Data início → data fim</li>
+        <li><span class="cmd-name">*resumo-executivo</span> 1 página com KPIs principais</li>
+      </ul>
+      <h4 style="margin-top:16px">Estrutura do relatório</h4>
+      <ul class="cmd-list">
+        <li><span class="cmd-name">1</span> Resumo executivo</li>
+        <li><span class="cmd-name">2</span> Performance por campanha</li>
+        <li><span class="cmd-name">3</span> Top criativos</li>
+        <li><span class="cmd-name">4</span> Análise de orçamento</li>
+        <li><span class="cmd-name">5</span> Tendências vs. período anterior</li>
+        <li><span class="cmd-name">6</span> Recomendações de ação</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ADA -->
+  <div class="card ada" onclick="toggleCard(this)">
+    <div class="card-header">
+      <div class="icon-box">✍️</div>
+      <div>
+        <div class="card-name">Ada</div>
+        <div class="card-title">Criadora de Anúncios</div>
+      </div>
+    </div>
+    <p class="card-desc">Cria textos de anúncio que vendem — headline, corpo e CTA — baseados nos dados de performance. Sempre entrega variações A/B para testar qual converte mais.</p>
+    <div class="tags">
+      <span class="tag">Headline</span>
+      <span class="tag">Copywriting</span>
+      <span class="tag">Teste A/B</span>
+      <span class="tag">CTA</span>
+    </div>
+    <div class="details">
+      <h4>Comandos</h4>
+      <ul class="cmd-list">
+        <li><span class="cmd-name">*criar-anuncio</span> Texto completo do zero</li>
+        <li><span class="cmd-name">*criar-variacoes</span> 3 variações A/B de anúncio existente</li>
+        <li><span class="cmd-name">*sugestoes-criativo</span> Ideias de imagem/vídeo</li>
+        <li><span class="cmd-name">*revisar-copia</span> Melhora um texto existente</li>
+      </ul>
+      <h4 style="margin-top:16px">Framework de anúncio</h4>
+      <ul class="cmd-list">
+        <li><span class="cmd-name">1</span> Gancho (primeiros 3s)</li>
+        <li><span class="cmd-name">2</span> Problema (amplifica a dor)</li>
+        <li><span class="cmd-name">3</span> Solução (seu produto)</li>
+        <li><span class="cmd-name">4</span> Prova social</li>
+        <li><span class="cmd-name">5</span> CTA claro</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- CLEO -->
+  <div class="card cleo" onclick="toggleCard(this)">
+    <div class="card-header">
+      <div class="icon-box">🎬</div>
+      <div>
+        <div class="card-name">Cleo</div>
+        <div class="card-title">Diretora de Criativos (Vídeo)</div>
+      </div>
+    </div>
+    <p class="card-desc">Transforma dados de performance em roteiros prontos para gravar. Cria briefs completos cena a cena, para vídeos verticais de 25-35s que convertem no Reels e Stories.</p>
+    <div class="tags">
+      <span class="tag">Vídeo</span>
+      <span class="tag">Roteiro</span>
+      <span class="tag">Reels</span>
+      <span class="tag">Brief</span>
+    </div>
+    <div class="details">
+      <h4>Comandos</h4>
+      <ul class="cmd-list">
+        <li><span class="cmd-name">*brief</span> Brief completo para gravar</li>
+        <li><span class="cmd-name">*gancho</span> 5 opções de abertura (primeiros 3s)</li>
+        <li><span class="cmd-name">*roteiro</span> Linha a linha com tempo por cena</li>
+        <li><span class="cmd-name">*referencias</span> O que os vídeos vencedores tinham</li>
+      </ul>
+      <div class="metric-grid" style="margin-top:16px">
+        <div class="metric"><div class="metric-val">0-3s</div><div class="metric-label">Gancho</div></div>
+        <div class="metric"><div class="metric-val">3-8s</div><div class="metric-label">Problema</div></div>
+        <div class="metric"><div class="metric-val">8-20s</div><div class="metric-label">Solução</div></div>
+        <div class="metric"><div class="metric-val">25-30s</div><div class="metric-label">CTA</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- FLUXO DO TIME -->
+<div class="workflow-section">
+  <h2>Como o time trabalha junto</h2>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-bubble" style="--c:#43e97b; background:#0d3b1e;">📊</div>
+      <div class="flow-label" style="color:#43e97b">Trace analisa campanhas</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-bubble" style="--c:#f093fb; background:#2d0d2e;">🎨</div>
+      <div class="flow-label" style="color:#f093fb">Cris revisa criativos</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-bubble" style="--c:#ffd700; background:#2e2600;">💰</div>
+      <div class="flow-label" style="color:#ffd700">Buck otimiza budget</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-bubble" style="--c:#fa709a; background:#2e0d1a;">✍️</div>
+      <div class="flow-label" style="color:#fa709a">Ada cria novos anúncios</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-bubble" style="--c:#a78bfa; background:#1a0d38;">🎬</div>
+      <div class="flow-label" style="color:#a78bfa">Cleo cria roteiros</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-bubble" style="--c:#4facfe; background:#0d2038;">📋</div>
+      <div class="flow-label" style="color:#4facfe">Rex gera relatório</div>
+    </div>
+  </div>
+</div>
+
+<!-- QUIZ -->
+<div class="quiz-section">
+  <h2>Quiz rápido</h2>
+  <p>Teste se você aprendeu quem faz o quê</p>
+  <div class="quiz-box">
+    <div class="quiz-question" id="qQuestion">Carregando...</div>
+    <div class="quiz-options" id="qOptions"></div>
+    <div class="quiz-feedback" id="qFeedback"></div>
+    <div class="quiz-score" id="qScore"></div>
+    <button class="quiz-next" id="qNext" onclick="nextQuestion()">Próxima →</button>
+  </div>
+</div>
+
+<footer>Time de Tráfego Pago — AIOS · Synkra</footer>
+
+<script>
+  // Toggle card
+  function toggleCard(el) {
+    const wasActive = el.classList.contains('active');
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+    if (!wasActive) el.classList.add('active');
+  }
+
+  // Quiz
+  const questions = [
+    {
+      q: "Qual agente é o LÍDER do time e analisa métricas como CTR, ROAS e CPC?",
+      options: ["Ada ✍️", "Trace 📊", "Rex 📋", "Buck 💰"],
+      correct: 1,
+      feedback: "Trace é o analista sênior e líder do time — transforma números em decisões!"
+    },
+    {
+      q: "Uma campanha tem ROAS de 0.5x há 5 dias. Qual agente cuida disso?",
+      options: ["Cleo 🎬", "Cris 🎨", "Buck 💰", "Ada ✍️"],
+      correct: 2,
+      feedback: "Buck! Ele pausa campanhas com ROAS abaixo de 1x por mais de 3 dias."
+    },
+    {
+      q: "Você quer gravar um vídeo de 30 segundos para o Reels. Quem te ajuda?",
+      options: ["Rex 📋", "Cleo 🎬", "Trace 📊", "Cris 🎨"],
+      correct: 1,
+      feedback: "Cleo! Ela cria briefs completos cena a cena para vídeos que convertem."
+    },
+    {
+      q: "Um criativo tem frequência 4.2 e CTR caindo. Quem identifica isso?",
+      options: ["Buck 💰", "Ada ✍️", "Cris 🎨", "Rex 📋"],
+      correct: 2,
+      feedback: "Cris! Frequência acima de 3 = criativo saturado. Ela detecta e recomenda trocar."
+    },
+    {
+      q: "Você quer um relatório de toda a performance do mês de fevereiro. Quem chama?",
+      options: ["Rex 📋", "Trace 📊", "Buck 💰", "Cleo 🎬"],
+      correct: 0,
+      feedback: "Rex! Ele gera relatórios claros com KPIs, tendências e recomendações de ação."
+    },
+    {
+      q: "Precisa escrever 3 variações de headline para teste A/B. Qual agente?",
+      options: ["Cleo 🎬", "Cris 🎨", "Trace 📊", "Ada ✍️"],
+      correct: 3,
+      feedback: "Ada! Ela é a copywriter do time — cria anúncios e variações A/B para testar."
+    },
+    {
+      q: "Campanha com ROAS 4x há 5 dias. Você quer aumentar o investimento. Quem gerencia?",
+      options: ["Rex 📋", "Ada ✍️", "Buck 💰", "Cleo 🎬"],
+      correct: 2,
+      feedback: "Buck! ROAS > 3x por 3+ dias = candidata a escalagem (máximo 20% por vez)."
+    }
+  ];
+
+  let current = 0;
+  let score = 0;
+  let answered = false;
+
+  function loadQuestion() {
+    const q = questions[current];
+    answered = false;
+    document.getElementById('qQuestion').textContent = `${current + 1}/${questions.length} — ${q.q}`;
+    document.getElementById('qFeedback').textContent = '';
+    document.getElementById('qNext').style.display = 'none';
+
+    const opts = document.getElementById('qOptions');
+    opts.innerHTML = '';
+    q.options.forEach((opt, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'quiz-btn';
+      btn.textContent = opt;
+      btn.onclick = () => answer(i);
+      opts.appendChild(btn);
+    });
+    document.getElementById('qScore').textContent = `Pontuação: ${score}/${current}`;
+  }
+
+  function answer(idx) {
+    if (answered) return;
+    answered = true;
+    const q = questions[current];
+    const btns = document.querySelectorAll('.quiz-btn');
+    btns.forEach((b, i) => {
+      b.style.pointerEvents = 'none';
+      if (i === q.correct) b.classList.add('correct');
+      else if (i === idx && i !== q.correct) b.classList.add('wrong');
+    });
+    if (idx === q.correct) {
+      score++;
+      document.getElementById('qFeedback').innerHTML = `✅ Certo! ${q.feedback}`;
+      document.getElementById('qFeedback').style.color = '#43e97b';
+    } else {
+      document.getElementById('qFeedback').innerHTML = `❌ Errou. ${q.feedback}`;
+      document.getElementById('qFeedback').style.color = '#ff6584';
+    }
+    document.getElementById('qScore').textContent = `Pontuação: ${score}/${current + 1}`;
+    document.getElementById('qNext').style.display = current < questions.length - 1 ? 'inline-block' : 'none';
+
+    if (current === questions.length - 1) {
+      setTimeout(() => showResult(), 600);
+    }
+  }
+
+  function nextQuestion() {
+    current++;
+    loadQuestion();
+  }
+
+  function showResult() {
+    const pct = Math.round((score / questions.length) * 100);
+    let emoji = pct >= 80 ? '🏆' : pct >= 50 ? '📈' : '📚';
+    let msg = pct >= 80 ? 'Você conhece bem o time!' : pct >= 50 ? 'Quase lá — releia os cards!' : 'Releia os cards e tente de novo!';
+    document.getElementById('qQuestion').textContent = `${emoji} ${pct}% — ${msg}`;
+    document.getElementById('qOptions').innerHTML = `<button class="quiz-btn" style="grid-column:span 2;text-align:center;border-color:#6c63ff;color:#6c63ff" onclick="restartQuiz()">Jogar de novo</button>`;
+    document.getElementById('qFeedback').textContent = '';
+    document.getElementById('qNext').style.display = 'none';
+  }
+
+  function restartQuiz() {
+    current = 0; score = 0;
+    loadQuestion();
+  }
+
+  loadQuestion();
+</script>
+</body>
+</html>

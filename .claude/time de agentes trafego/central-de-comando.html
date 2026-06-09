@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Central de Comando — Time de Tráfego</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #05050f;
+      --surface: #0c0c20;
+      --border: #1a1a35;
+      --text: #e0e0ff;
+      --muted: #3a3a6a;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(25,25,70,0.25) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(25,25,70,0.25) 1px, transparent 1px);
+      background-size: 44px 44px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── MODAL ─────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.88);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(10px);
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 44px;
+      width: 100%; max-width: 500px;
+    }
+    .modal-icon { font-size: 2.5rem; margin-bottom: 16px; }
+    .modal h2 { font-size: 1.5rem; margin-bottom: 8px; }
+    .modal-sub { color: var(--muted); font-size: 0.88rem; margin-bottom: 32px; line-height: 1.6; }
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; }
+    .form-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 13px 16px;
+      font-size: 0.88rem;
+      font-family: monospace;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus { border-color: #6c63ff; box-shadow: 0 0 0 3px rgba(108,99,255,0.1); }
+    select.form-input option { background: #0c0c20; color: #e0e0ff; }
+    .btn-primary {
+      width: 100%;
+      background: linear-gradient(135deg, #6c63ff, #a78bfa);
+      color: #fff; border: none;
+      border-radius: 14px;
+      padding: 15px;
+      font-size: 1rem; font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+    .modal-hint { text-align: center; color: var(--muted); font-size: 0.75rem; margin-top: 16px; }
+
+    /* ── APP LAYOUT ────────────────────────── */
+    .app {
+      position: relative; z-index: 1;
+      max-width: 1280px; margin: 0 auto;
+      padding: 24px 24px 32px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+
+    /* ── HEADER ────────────────────────────── */
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 12px;
+    }
+    .header-left h1 {
+      font-size: 1.5rem; font-weight: 900;
+      background: linear-gradient(90deg, #6c63ff, #a78bfa, #4facfe);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .header-left p { color: var(--muted); font-size: 0.78rem; margin-top: 3px; }
+    .header-right { display: flex; gap: 10px; align-items: center; }
+    .status-pill {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 8px 16px; font-size: 0.8rem;
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #43e97b; box-shadow: 0 0 8px #43e97b;
+      animation: blink 2s infinite;
+    }
+    .dot.idle { background: var(--muted); box-shadow: none; animation: none; }
+    .dot.busy { background: #ffd700; box-shadow: 0 0 8px #ffd700; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .btn-cog {
+      background: none; border: 1px solid var(--border);
+      color: var(--muted); border-radius: 10px; padding: 8px 14px;
+      font-size: 0.8rem; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-cog:hover { border-color: #6c63ff; color: var(--text); }
+
+    /* ── WAR ROOM ──────────────────────────── */
+    .war-room {
+      background: #06060f;
+      border: 2px solid #1a1a35;
+      border-radius: 20px;
+      padding: 28px 24px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .war-room::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: repeating-conic-gradient(#080816 0% 25%, #0a0a1e 0% 50%) 0 0 / 24px 24px;
+      opacity: 0.7;
+    }
+    .war-room-label {
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      font-size: 0.55rem; letter-spacing: 4px; color: #1e1e40;
+      white-space: nowrap; font-family: monospace; font-weight: 700;
+    }
+    .agents-grid {
+      display: flex; justify-content: center; gap: 18px; flex-wrap: wrap;
+      position: relative; z-index: 1; padding-top: 12px;
+    }
+
+    /* ── PIXEL SPRITE AGENT ─────────────────── */
+    .game-agent {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 0; position: relative; cursor: default; user-select: none;
+    }
+
+    /* Bubble */
+    .g-bubble {
+      position: absolute; bottom: calc(100% + 4px); left: 50%;
+      transform: translateX(-50%);
+      background: #fff; color: #111;
+      border: 2px solid #333; border-radius: 8px;
+      font-size: 0.58rem; padding: 5px 9px;
+      min-width: 80px; max-width: 160px; text-align: center;
+      opacity: 0; pointer-events: none; z-index: 20;
+      transition: opacity 0.2s; line-height: 1.5;
+      font-family: monospace; white-space: normal;
+    }
+    .g-bubble::after {
+      content: ''; position: absolute; top: 100%; left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent; border-top-color: #fff;
+    }
+    .game-agent.speaking .g-bubble { opacity: 1; }
+
+    /* HEAD */
+    .g-head {
+      width: 38px; height: 38px;
+      background: #f5c592;
+      border: 2px solid #222; border-radius: 5px;
+      position: relative; overflow: hidden;
+      z-index: 3;
+    }
+    .g-hair {
+      position: absolute; top: 0; left: -1px; right: -1px; height: 15px;
+      background: var(--hair); border-radius: 3px 3px 0 0;
+    }
+    .g-glasses {
+      position: absolute; top: 19px; left: 4px; right: 4px; height: 6px;
+      border: 1.5px solid #555; border-radius: 2px;
+      background: rgba(120,200,255,0.12);
+    }
+    .g-eyes {
+      position: absolute; top: 19px; left: 0; right: 0;
+      display: flex; justify-content: space-around; padding: 0 7px;
+    }
+    .g-eye {
+      width: 5px; height: 6px; background: #1a1a1a;
+      border-radius: 1px; transition: transform 0.1s;
+    }
+    .game-agent.idle .g-eye { animation: g-blink 4s ease-in-out infinite; }
+    .game-agent.done .g-eye { background: #43c043; border-radius: 50%; }
+    @keyframes g-blink { 0%,88%,100%{transform:scaleY(1)} 92%{transform:scaleY(0.1)} }
+
+    .g-mouth {
+      position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);
+      width: 12px; height: 4px; background: #b04040;
+      border-radius: 0 0 5px 5px; transition: all 0.3s;
+    }
+    .game-agent.done .g-mouth { border-radius: 5px; background: #d06020; height: 6px; }
+    .game-agent.working .g-mouth { width: 8px; border-radius: 2px; }
+
+    /* SHOULDERS */
+    .g-shoulders {
+      width: 46px; height: 18px;
+      background: var(--shirt);
+      border: 2px solid #222; border-top: none;
+      border-radius: 0 0 5px 5px;
+      position: relative; z-index: 2; margin-top: -2px;
+    }
+    .g-arm {
+      position: absolute; top: 0;
+      width: 10px; height: 24px;
+      background: var(--shirt);
+      border: 2px solid #222; border-radius: 3px;
+      transform-origin: top center;
+    }
+    .g-arm.l { left: -12px; }
+    .g-arm.r { right: -12px; }
+    .game-agent.working .g-arm.l { animation: arm-l 0.22s ease-in-out infinite; }
+    .game-agent.working .g-arm.r { animation: arm-r 0.22s ease-in-out infinite; }
+    @keyframes arm-l { 0%,100%{transform:rotate(-18deg)} 50%{transform:rotate(8deg) translateY(4px)} }
+    @keyframes arm-r { 0%,100%{transform:rotate(8deg) translateY(4px)} 50%{transform:rotate(-18deg)} }
+
+    /* MONITOR */
+    .g-monitor {
+      width: 60px; height: 44px;
+      background: #030310;
+      border: 2px solid #2a2a4a; border-radius: 5px;
+      margin-top: 8px; position: relative; overflow: hidden;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .g-monitor::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(0deg,transparent 0,transparent 2px,rgba(0,0,0,0.25) 2px,rgba(0,0,0,0.25) 3px);
+      pointer-events: none; z-index: 2;
+    }
+    .game-agent.working .g-monitor {
+      border-color: var(--ac);
+      box-shadow: 0 0 18px color-mix(in srgb,var(--ac) 55%,transparent), inset 0 0 10px rgba(0,0,0,0.6);
+    }
+    .game-agent.done .g-monitor { border-color: var(--ac); box-shadow: 0 0 10px color-mix(in srgb,var(--ac) 35%,transparent); }
+    .g-screen {
+      font-family: monospace; font-size: 5px;
+      color: var(--ac); line-height: 1.8; padding: 4px;
+      opacity: 0; transition: opacity 0.3s;
+      position: relative; z-index: 1;
+    }
+    .game-agent.working .g-screen { opacity:1; animation: g-scroll 1.5s linear infinite; }
+    .game-agent.done .g-screen { opacity: 0.5; }
+    @keyframes g-scroll { 0%{transform:translateY(0)} 100%{transform:translateY(-28px)} }
+
+    .g-stand { width: 10px; height: 6px; background: #1e1e38; border-radius: 0 0 3px 3px; margin: 0 auto; }
+
+    /* KEYBOARD */
+    .g-keyboard {
+      width: 46px; height: 7px;
+      background: #141428; border: 1px solid #2a2a4a;
+      border-radius: 2px; display: grid;
+      grid-template-columns: repeat(7,1fr); gap: 1px; padding: 1px;
+      margin-top: 4px;
+    }
+    .g-key { background: #2a2a4a; border-radius: 1px; }
+    .game-agent.working .g-key { animation: key-flash 0.22s ease-in-out infinite alternate; }
+    @keyframes key-flash { from{background:#2a2a4a} to{background:color-mix(in srgb,var(--ac) 30%,#2a2a4a)} }
+
+    /* DESK */
+    .g-desk { width: 84px; height: 9px; background: #131326; border: 1px solid #222; border-radius: 3px; margin-top: 2px; }
+
+    /* LABEL */
+    .g-label { text-align: center; margin-top: 7px; }
+    .g-name { font-size: 0.7rem; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; transition: color 0.3s; }
+    .g-role { font-size: 0.54rem; color: var(--muted); margin-top: 1px; }
+    .game-agent.idle .g-name { color: #2a2a4a; }
+    .game-agent.working .g-name { color: var(--ac); }
+    .game-agent.done .g-name { color: var(--ac); }
+
+    /* HP BAR */
+    .g-hp { width: 60px; height: 5px; background: #0a0a1a; border: 1px solid #1a1a30; border-radius: 3px; margin-top: 5px; overflow: hidden; }
+    .g-hp-fill { height: 100%; background: var(--ac); border-radius: 3px; width: 25%; opacity: 0.25; transition: width 0.5s, opacity 0.3s; }
+    .game-agent.working .g-hp-fill { width: 65%; opacity: 1; animation: hp-pulse 0.7s ease-in-out infinite; }
+    .game-agent.done .g-hp-fill { width: 100%; opacity: 1; }
+    @keyframes hp-pulse { 0%,100%{width:50%;opacity:0.8} 50%{width:80%;opacity:1} }
+
+    /* Head animations */
+    .game-agent.idle .g-head { animation: head-idle 3s ease-in-out infinite; }
+    .game-agent.working .g-head { animation: head-work 0.35s ease-in-out infinite; }
+    .game-agent.done .g-head { animation: head-done 0.28s ease-in-out 5; }
+    @keyframes head-idle { 0%,100%{transform:translateY(0) rotate(0)} 50%{transform:translateY(-3px) rotate(-2deg)} }
+    @keyframes head-work { 0%,100%{transform:translateY(0) rotate(-1deg)} 50%{transform:translateY(-2px) rotate(1.5deg)} }
+    @keyframes head-done { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-9px) scale(1.12)} }
+
+    /* Dim when idle */
+    .game-agent.idle .g-head,
+    .game-agent.idle .g-shoulders { filter: brightness(0.38) saturate(0.2); }
+
+    /* Agent colors */
+    .a-trace { --ac:#43e97b; --hair:#1e1e1e; --shirt:#1a5c32; }
+    .a-cris  { --ac:#f093fb; --hair:#c020d0; --shirt:#5a1860; }
+    .a-buck  { --ac:#ffd700; --hair:#0d0d0d; --shirt:#7a6000; }
+    .a-rex   { --ac:#4facfe; --hair:#7a4010; --shirt:#0a3870; }
+    .a-ada   { --ac:#fa709a; --hair:#cc1038; --shirt:#781038; }
+    .a-cleo  { --ac:#a78bfa; --hair:#6828b8; --shirt:#3c0e78; }
+
+    /* ── MAIN AREA ─────────────────────────── */
+    .main-area {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 20px;
+    }
+
+    /* ── FEED ──────────────────────────────── */
+    .feed-panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 20px;
+      display: flex; flex-direction: column; gap: 0;
+    }
+    .panel-header {
+      display: flex; align-items: center; gap: 8px;
+      padding-bottom: 14px; margin-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-header-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); }
+
+    .feed-scroll {
+      flex: 1; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 14px;
+      min-height: 260px; max-height: 260px;
+    }
+    .feed-scroll::-webkit-scrollbar { width: 3px; }
+    .feed-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .feed-empty {
+      display: flex; align-items: center; justify-content: center;
+      height: 100%; color: var(--muted); font-size: 0.83rem; text-align: center; line-height: 1.7;
+    }
+
+    .msg { display: flex; gap: 10px; animation: msgin 0.28s ease; }
+    @keyframes msgin { from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:none} }
+    .msg-av {
+      width: 34px; height: 34px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; flex-shrink: 0;
+      background: var(--bg); border: 2px solid var(--mc);
+    }
+    .msg-body { flex: 1; }
+    .msg-who { font-size: 0.7rem; font-weight: 800; color: var(--mc); margin-bottom: 3px; }
+    .msg-text { font-size: 0.82rem; color: #bbb; line-height: 1.6; }
+    .msg-text b { color: var(--mc); }
+
+    /* ── RESULTS ───────────────────────────── */
+    .results-panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 20px;
+      overflow-y: auto; max-height: 360px;
+    }
+    .results-panel::-webkit-scrollbar { width: 3px; }
+    .results-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .rph {
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px;
+      color: var(--muted); padding-bottom: 14px; margin-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .kpi-card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 14px; padding: 14px 16px; margin-bottom: 10px;
+      animation: slidein 0.35s ease;
+    }
+    @keyframes slidein { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+    .kpi-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+    .kpi-val { font-size: 1.7rem; font-weight: 900; margin: 4px 0 2px; }
+    .kpi-sub { font-size: 0.73rem; color: var(--muted); }
+
+    .camp-card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
+      animation: slidein 0.35s ease;
+    }
+    .camp-name { font-size: 0.8rem; font-weight: 700; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .camp-metrics { display: flex; gap: 10px; flex-wrap: wrap; }
+    .cm { }
+    .cm-l { font-size: 0.65rem; color: var(--muted); }
+    .cm-v { font-size: 0.82rem; font-weight: 700; }
+    .badge {
+      display: inline-block; margin-top: 7px;
+      padding: 2px 10px; border-radius: 20px; font-size: 0.62rem; font-weight: 800;
+    }
+    .badge-ok   { background:#0a2e17; color:#43e97b; }
+    .badge-warn { background:#231e00; color:#ffd700; }
+    .badge-bad  { background:#2e0a0a; color:#ff4d4d; }
+
+    .rp-empty {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; height: 220px; gap: 12px;
+      text-align: center; color: var(--muted); font-size: 0.83rem;
+    }
+
+    .divider-label {
+      font-size: 0.65rem; text-transform: uppercase; letter-spacing: 2px;
+      color: var(--muted); border-top: 1px solid var(--border);
+      padding-top: 14px; margin: 6px 0 10px;
+    }
+
+    /* ── INPUT AREA ────────────────────────── */
+    .input-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 18px; padding: 16px 20px;
+    }
+    .input-row { display: flex; gap: 12px; align-items: center; }
+    .cmd-input {
+      flex: 1; background: none; border: none; outline: none;
+      color: var(--text); font-size: 0.95rem; font-family: inherit;
+    }
+    .cmd-input::placeholder { color: var(--muted); }
+
+    .btn-run {
+      background: linear-gradient(135deg, #6c63ff, #a78bfa);
+      border: none; color: #fff;
+      border-radius: 12px; padding: 12px 26px;
+      font-size: 0.92rem; font-weight: 700;
+      cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+      display: flex; align-items: center; gap: 8px; white-space: nowrap;
+    }
+    .btn-run:hover { opacity: 0.85; transform: translateY(-1px); }
+    .btn-run:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .spin {
+      width: 15px; height: 15px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    .btn-run.loading .spin { display: block; }
+    .btn-run.loading .rl { display: none; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+
+    .chips { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+    .chip-label { font-size: 0.72rem; color: var(--muted); }
+    .chip {
+      background: var(--bg); border: 1px solid var(--border);
+      color: var(--muted); border-radius: 20px; padding: 4px 12px;
+      font-size: 0.73rem; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .chip:hover { border-color: #6c63ff; color: var(--text); }
+
+    /* ── TOAST ─────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #2e0a0a; border: 1px solid #ff4d4d;
+      color: #ff4d4d; border-radius: 14px; padding: 14px 20px;
+      font-size: 0.83rem; z-index: 999; max-width: 400px;
+      animation: msgin 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+
+<!-- MODAL CREDENCIAIS -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-icon">🔐</div>
+    <h2>Conectar à Meta Ads</h2>
+    <p class="modal-sub">
+      Token encontrado! Selecione a conta de anúncios que deseja analisar.
+    </p>
+    <div class="form-group">
+      <label class="form-label">Meta Access Token</label>
+      <input type="password" class="form-input" id="tokenInput" placeholder="EAAxxxxx..." oninput="fetchAdAccounts()" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Conta de Anúncios</label>
+      <select class="form-input" id="accountSelect" onchange="selectAccount()" style="display:none;cursor:pointer"></select>
+      <div id="accountStatus" style="font-size:0.78rem;margin-top:8px;min-height:18px"></div>
+      <input type="text" class="form-input" id="accountInput" placeholder="act_1234567890" style="margin-top:8px" />
+    </div>
+    <button class="btn-primary" onclick="saveSettings()">Entrar na Central →</button>
+    <p class="modal-hint">Seus dados não saem do navegador.</p>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <h1>Central de Comando</h1>
+      <p>Time de Tráfego Pago — Meta Ads · Análise em tempo real</p>
+    </div>
+    <div class="header-right">
+      <div class="status-pill">
+        <div class="dot idle" id="statusDot"></div>
+        <span id="statusText">Aguardando</span>
+      </div>
+      <button class="btn-cog" onclick="openSettings()">⚙️ Credenciais</button>
+    </div>
+  </div>
+
+  <!-- WAR ROOM -->
+  <div class="war-room">
+    <div class="war-room-label">◈ SALA DE OPERAÇÕES ◈</div>
+    <div class="agents-grid">
+
+      <!-- TRACE -->
+      <div class="game-agent a-trace idle" id="st-trace">
+        <div class="g-bubble" id="b-trace"></div>
+        <div class="g-head">
+          <div class="g-hair"></div>
+          <div class="g-glasses"></div>
+          <div class="g-eyes"><div class="g-eye"></div><div class="g-eye"></div></div>
+          <div class="g-mouth"></div>
+        </div>
+        <div class="g-shoulders">
+          <div class="g-arm l"></div>
+          <div class="g-arm r"></div>
+        </div>
+        <div class="g-monitor"><div class="g-screen">CTR↑<br>ROAS<br>3.2x<br>CPC↓<br>ok!<br>CTR↑<br>ROAS</div></div>
+        <div class="g-stand"></div>
+        <div class="g-keyboard"><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div></div>
+        <div class="g-desk"></div>
+        <div class="g-label"><div class="g-name">Trace</div><div class="g-role">Líder · Analista</div></div>
+        <div class="g-hp"><div class="g-hp-fill"></div></div>
+      </div>
+
+      <!-- CRIS -->
+      <div class="game-agent a-cris idle" id="st-cris">
+        <div class="g-bubble" id="b-cris"></div>
+        <div class="g-head">
+          <div class="g-hair"></div>
+          <div class="g-eyes"><div class="g-eye"></div><div class="g-eye"></div></div>
+          <div class="g-mouth"></div>
+        </div>
+        <div class="g-shoulders">
+          <div class="g-arm l"></div>
+          <div class="g-arm r"></div>
+        </div>
+        <div class="g-monitor"><div class="g-screen">CTR<br>Freq<br>2.1<br>sat?<br>ok!<br>CTR<br>Freq</div></div>
+        <div class="g-stand"></div>
+        <div class="g-keyboard"><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div></div>
+        <div class="g-desk"></div>
+        <div class="g-label"><div class="g-name">Cris</div><div class="g-role">Criativos</div></div>
+        <div class="g-hp"><div class="g-hp-fill"></div></div>
+      </div>
+
+      <!-- BUCK -->
+      <div class="game-agent a-buck idle" id="st-buck">
+        <div class="g-bubble" id="b-buck"></div>
+        <div class="g-head">
+          <div class="g-hair"></div>
+          <div class="g-eyes"><div class="g-eye"></div><div class="g-eye"></div></div>
+          <div class="g-mouth"></div>
+        </div>
+        <div class="g-shoulders">
+          <div class="g-arm l"></div>
+          <div class="g-arm r"></div>
+        </div>
+        <div class="g-monitor"><div class="g-screen">R$$$<br>70%<br>top!<br>esc↑<br>ok!<br>R$$$<br>70%</div></div>
+        <div class="g-stand"></div>
+        <div class="g-keyboard"><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div></div>
+        <div class="g-desk"></div>
+        <div class="g-label"><div class="g-name">Buck</div><div class="g-role">Orçamento</div></div>
+        <div class="g-hp"><div class="g-hp-fill"></div></div>
+      </div>
+
+      <!-- REX -->
+      <div class="game-agent a-rex idle" id="st-rex">
+        <div class="g-bubble" id="b-rex"></div>
+        <div class="g-head">
+          <div class="g-hair"></div>
+          <div class="g-eyes"><div class="g-eye"></div><div class="g-eye"></div></div>
+          <div class="g-mouth"></div>
+        </div>
+        <div class="g-shoulders">
+          <div class="g-arm l"></div>
+          <div class="g-arm r"></div>
+        </div>
+        <div class="g-monitor"><div class="g-screen">RPT<br>7d<br>KPI↑<br>sum<br>ok!<br>RPT<br>7d</div></div>
+        <div class="g-stand"></div>
+        <div class="g-keyboard"><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div></div>
+        <div class="g-desk"></div>
+        <div class="g-label"><div class="g-name">Rex</div><div class="g-role">Relatórios</div></div>
+        <div class="g-hp"><div class="g-hp-fill"></div></div>
+      </div>
+
+      <!-- ADA -->
+      <div class="game-agent a-ada idle" id="st-ada">
+        <div class="g-bubble" id="b-ada"></div>
+        <div class="g-head">
+          <div class="g-hair"></div>
+          <div class="g-eyes"><div class="g-eye"></div><div class="g-eye"></div></div>
+          <div class="g-mouth"></div>
+        </div>
+        <div class="g-shoulders">
+          <div class="g-arm l"></div>
+          <div class="g-arm r"></div>
+        </div>
+        <div class="g-monitor"><div class="g-screen">A/B<br>CTA!<br>copy<br>new!<br>ok!<br>A/B<br>CTA!</div></div>
+        <div class="g-stand"></div>
+        <div class="g-keyboard"><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div></div>
+        <div class="g-desk"></div>
+        <div class="g-label"><div class="g-name">Ada</div><div class="g-role">Anúncios</div></div>
+        <div class="g-hp"><div class="g-hp-fill"></div></div>
+      </div>
+
+      <!-- CLEO -->
+      <div class="game-agent a-cleo idle" id="st-cleo">
+        <div class="g-bubble" id="b-cleo"></div>
+        <div class="g-head">
+          <div class="g-hair"></div>
+          <div class="g-eyes"><div class="g-eye"></div><div class="g-eye"></div></div>
+          <div class="g-mouth"></div>
+        </div>
+        <div class="g-shoulders">
+          <div class="g-arm l"></div>
+          <div class="g-arm r"></div>
+        </div>
+        <div class="g-monitor"><div class="g-screen">VID<br>30s<br>9:16<br>hook<br>ok!<br>VID<br>30s</div></div>
+        <div class="g-stand"></div>
+        <div class="g-keyboard"><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div><div class="g-key"></div></div>
+        <div class="g-desk"></div>
+        <div class="g-label"><div class="g-name">Cleo</div><div class="g-role">Vídeos</div></div>
+        <div class="g-hp"><div class="g-hp-fill"></div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MAIN AREA -->
+  <div class="main-area">
+
+    <!-- FEED AO VIVO -->
+    <div class="feed-panel">
+      <div class="panel-header">
+        <div class="dot idle" id="feedDot" style="background:#6c63ff;box-shadow:0 0 8px #6c63ff;animation:none"></div>
+        <span class="panel-header-title">Feed ao vivo do time</span>
+      </div>
+      <div class="feed-scroll" id="feedScroll">
+        <div class="feed-empty" id="feedEmpty">
+          O time está em espera.<br>
+          Digite um comando abaixo para iniciar a análise.
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULTADOS -->
+    <div class="results-panel" id="resultsPanel">
+      <div class="rph">📊 Resultados</div>
+      <div class="rp-empty" id="rpEmpty">
+        <div style="font-size:2.2rem">🎯</div>
+        <div>Os dados da sua conta Meta Ads aparecem aqui após a análise.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- INPUT -->
+  <div class="input-wrap">
+    <div class="input-row">
+      <span style="font-size:1.3rem">💬</span>
+      <input
+        class="cmd-input"
+        id="cmdInput"
+        type="text"
+        placeholder="Ex: analisa minhas campanhas dos últimos 7 dias..."
+        maxlength="200"
+        onkeydown="if(event.key==='Enter')run()"
+      />
+      <button class="btn-run" id="runBtn" onclick="run()">
+        <span class="rl">▶ Analisar</span>
+        <div class="spin"></div>
+      </button>
+    </div>
+    <div class="chips">
+      <span class="chip-label">Exemplos:</span>
+      <div class="chip" onclick="setEx(this)">analisa minha conta — últimos 7 dias</div>
+      <div class="chip" onclick="setEx(this)">qual campanha está gastando mais?</div>
+      <div class="chip" onclick="setEx(this)">quais criativos estão saturados?</div>
+      <div class="chip" onclick="setEx(this)">gera um resumo executivo da semana</div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+// ── SETTINGS ────────────────────────────────────────────────────────────────
+const HARDCODED_TOKEN   = 'EAAUZCncL5VEEBQ5VrZCmqlpSkh1Ph9FZBqTCxHvPyUkt0ckbkU1Ayae3goADBMtvcoXEZCMcaXY2HGxAeY88BnThZBCgk3XdfB27O8UMVLDLOrnxV1tghwpjU7YQWtPGBi3nLR2P3bySCk5BWteJGE3ij1oEJlJzJ1rdXSF8OAlQHyBmbbb051ORjOiVDbZARMeGuv5DqbnAYi';
+const HARDCODED_ACCOUNT = 'act_1550015673109767'; // carinha da IA
+
+let TOKEN   = localStorage.getItem('mads_token')   || HARDCODED_TOKEN;
+let ACCOUNT = localStorage.getItem('mads_account') || HARDCODED_ACCOUNT;
+
+function openSettings() {
+  document.getElementById('tokenInput').value   = TOKEN;
+  document.getElementById('accountInput').value = ACCOUNT;
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+async function fetchAdAccounts() {
+  const t = document.getElementById('tokenInput').value.trim();
+  if (!t) return;
+  const sel = document.getElementById('accountSelect');
+  const status = document.getElementById('accountStatus');
+  sel.innerHTML = '<option>Buscando contas...</option>';
+  sel.style.display = 'block';
+  status.textContent = '';
+  try {
+    const r = await fetch(`https://graph.facebook.com/v19.0/me/adaccounts?fields=name,account_id,currency,account_status&access_token=${t}`);
+    const d = await r.json();
+    if (d.error) throw new Error(d.error.message);
+    const accounts = d.data || [];
+    if (accounts.length === 0) {
+      sel.innerHTML = '<option>Nenhuma conta de anúncios encontrada</option>';
+      return;
+    }
+    sel.innerHTML = accounts.map(a =>
+      `<option value="${a.id}">${a.name} (${a.id}) — ${a.currency}</option>`
+    ).join('');
+    // auto-select first
+    document.getElementById('accountInput').value = accounts[0].id;
+    status.textContent = `✅ ${accounts.length} conta(s) encontrada(s)`;
+    status.style.color = '#43e97b';
+  } catch(e) {
+    sel.innerHTML = '';
+    sel.style.display = 'none';
+    status.textContent = '❌ ' + e.message;
+    status.style.color = '#ff4d4d';
+  }
+}
+
+function selectAccount() {
+  const sel = document.getElementById('accountSelect');
+  document.getElementById('accountInput').value = sel.value;
+}
+
+function saveSettings() {
+  const t = document.getElementById('tokenInput').value.trim();
+  const a = document.getElementById('accountInput').value.trim();
+  if (!t || !a) { alert('Preencha os dois campos!'); return; }
+  TOKEN = t; ACCOUNT = a;
+  localStorage.setItem('mads_token', t);
+  localStorage.setItem('mads_account', a);
+  document.getElementById('modal').classList.add('hidden');
+  setStatus('connected');
+}
+
+// Sempre força token + conta correta
+localStorage.setItem('mads_token',   HARDCODED_TOKEN);
+localStorage.setItem('mads_account', HARDCODED_ACCOUNT);
+TOKEN   = HARDCODED_TOKEN;
+ACCOUNT = HARDCODED_ACCOUNT;
+
+// Auto-hide modal — já está configurado
+document.getElementById('modal').classList.add('hidden');
+setStatus('connected');
+
+function setStatus(state) {
+  const dot  = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  dot.className = 'dot';
+  if (state === 'connected')  { dot.style.background='#43e97b'; dot.style.boxShadow='0 0 8px #43e97b'; dot.style.animation='blink 2s infinite'; text.textContent='Conectado'; }
+  if (state === 'busy')       { dot.style.background='#ffd700'; dot.style.boxShadow='0 0 8px #ffd700'; dot.style.animation='blink 0.6s infinite'; text.textContent='Analisando...'; }
+  if (state === 'done')       { dot.style.background='#43e97b'; dot.style.boxShadow='0 0 8px #43e97b'; dot.style.animation='none'; text.textContent='Análise completa'; }
+  if (state === 'error')      { dot.style.background='#ff4d4d'; dot.style.boxShadow='0 0 8px #ff4d4d'; dot.style.animation='none'; text.textContent='Erro de API'; }
+  if (state === 'idle')       { dot.style.background='#3a3a6a'; dot.style.boxShadow='none'; dot.style.animation='none'; text.textContent='Aguardando'; }
+}
+
+function setEx(el) {
+  document.getElementById('cmdInput').value = el.textContent.trim();
+  document.getElementById('cmdInput').focus();
+}
+
+// ── AGENTS ──────────────────────────────────────────────────────────────────
+const AGENTS = {
+  trace: { name:'Trace', icon:'📊', color:'#43e97b' },
+  cris:  { name:'Cris',  icon:'🎨', color:'#f093fb' },
+  buck:  { name:'Buck',  icon:'💰', color:'#ffd700' },
+  rex:   { name:'Rex',   icon:'📋', color:'#4facfe' },
+  ada:   { name:'Ada',   icon:'✍️', color:'#fa709a' },
+  cleo:  { name:'Cleo',  icon:'🎬', color:'#a78bfa' },
+};
+
+function setState(id, state) {
+  const el = document.getElementById('st-' + id);
+  if (!el) return;
+  el.classList.remove('idle','working','done','speaking');
+  el.classList.add(state);
+}
+function speak(id, text, ms=3200) {
+  const b = document.getElementById('b-' + id);
+  if (!b) return;
+  b.textContent = text;
+  const el = document.getElementById('st-' + id);
+  el.classList.add('speaking');
+  setTimeout(() => el.classList.remove('speaking'), ms);
+}
+function allIdle() { Object.keys(AGENTS).forEach(id => setState(id, 'idle')); }
+
+// ── FEED ─────────────────────────────────────────────────────────────────────
+function clearFeed() {
+  const sc = document.getElementById('feedScroll');
+  sc.innerHTML = '';
+}
+
+function addMsg(agentId, html, delayMs=0) {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      const a = AGENTS[agentId];
+      const empty = document.getElementById('feedEmpty');
+      if (empty) empty.remove();
+
+      const el = document.createElement('div');
+      el.className = 'msg';
+      el.style.setProperty('--mc', a.color);
+      el.innerHTML = `
+        <div class="msg-av" style="--mc:${a.color}">${a.icon}</div>
+        <div class="msg-body">
+          <div class="msg-who">${a.name}</div>
+          <div class="msg-text"></div>
+        </div>`;
+
+      const sc = document.getElementById('feedScroll');
+      sc.appendChild(el);
+      sc.scrollTop = sc.scrollHeight;
+
+      typewrite(el.querySelector('.msg-text'), html, a.color, resolve);
+    }, delayMs);
+  });
+}
+
+// postMsg = fire-and-forget (não bloqueia o flow)
+function postMsg(agentId, text) {
+  const a = AGENTS[agentId];
+  const empty = document.getElementById('feedEmpty');
+  if (empty) empty.remove();
+  const el = document.createElement('div');
+  el.className = 'msg';
+  el.style.setProperty('--mc', a.color);
+  el.innerHTML = `
+    <div class="msg-av" style="--mc:${a.color}">${a.icon}</div>
+    <div class="msg-body">
+      <div class="msg-who">${a.name}</div>
+      <div class="msg-text"></div>
+    </div>`;
+  const sc = document.getElementById('feedScroll');
+  sc.appendChild(el);
+  sc.scrollTop = sc.scrollHeight;
+  typewrite(el.querySelector('.msg-text'), text, a.color, null);
+}
+
+function typewrite(el, text, color, done) {
+  let i = 0;
+  const raw = text;
+  el.textContent = '';
+  const iv = setInterval(() => {
+    if (i >= raw.length) {
+      clearInterval(iv);
+      el.innerHTML = raw
+        .replace(/\*\*(.*?)\*\*/g, `<b style="color:${color}">$1</b>`)
+        .replace(/\n/g, '<br>');
+      if (done) done();
+      return;
+    }
+    el.textContent = raw.slice(0, i + 1);
+    i += 3;
+  }, 14);
+}
+
+// ── RESULTS ──────────────────────────────────────────────────────────────────
+function clearResults() {
+  const p = document.getElementById('resultsPanel');
+  p.innerHTML = '<div class="rph">📊 Resultados</div>';
+}
+
+function addKPI(label, val, sub, color, delay=0) {
+  setTimeout(() => {
+    const p = document.getElementById('resultsPanel');
+    const c = document.createElement('div');
+    c.className = 'kpi-card';
+    c.style.borderColor = color || 'var(--border)';
+    c.innerHTML = `<div class="kpi-label">${label}</div><div class="kpi-val" style="color:${color||'var(--text)'}">${val}</div><div class="kpi-sub">${sub}</div>`;
+    p.appendChild(c);
+  }, delay);
+}
+
+function addCampCard(c, delay=0) {
+  setTimeout(() => {
+    const spend = parseFloat(c.spend || 0);
+    const ctr   = parseFloat(c.ctr   || 0);
+    const cpc   = parseFloat(c.cpc   || 0);
+    const freq  = parseFloat(c.frequency || 0);
+    const imp   = parseInt(c.impressions || 0);
+    const reach = parseInt(c.reach || 0);
+
+    let roas = 0, conv = 0;
+    if (c.action_values) {
+      const p = c.action_values.find(a => a.action_type.includes('purchase') || a.action_type.includes('omni'));
+      if (p && spend > 0) roas = parseFloat(p.value) / spend;
+    }
+    if (c.actions) {
+      const p = c.actions.find(a => a.action_type.includes('purchase') || a.action_type === 'lead' || a.action_type.includes('omni'));
+      if (p) conv = parseInt(p.value);
+    }
+
+    let badgeClass = 'badge-warn', badgeText = '⚠️ ATENÇÃO';
+    if ((roas >= 3 || conv > 0) && ctr >= 1) { badgeClass='badge-ok'; badgeText='✅ SAUDÁVEL'; }
+    else if (roas < 1 && ctr < 0.5 && spend > 5) { badgeClass='badge-bad'; badgeText='❌ PAUSAR'; }
+
+    const p = document.getElementById('resultsPanel');
+    const el = document.createElement('div');
+    el.className = 'camp-card';
+    el.innerHTML = `
+      <div class="camp-name" title="${c.campaign_name}">${c.campaign_name || 'Campanha'}</div>
+      <div class="camp-metrics">
+        <div class="cm"><div class="cm-l">Gasto</div><div class="cm-v">R$ ${spend.toFixed(2)}</div></div>
+        <div class="cm"><div class="cm-l">CTR</div><div class="cm-v">${ctr.toFixed(2)}%</div></div>
+        <div class="cm"><div class="cm-l">CPC</div><div class="cm-v">R$ ${cpc.toFixed(2)}</div></div>
+        ${freq>0?`<div class="cm"><div class="cm-l">Freq.</div><div class="cm-v">${freq.toFixed(1)}</div></div>`:''}
+        ${roas>0?`<div class="cm"><div class="cm-l">ROAS</div><div class="cm-v">${roas.toFixed(1)}x</div></div>`:''}
+        ${conv>0?`<div class="cm"><div class="cm-l">Conv.</div><div class="cm-v">${conv}</div></div>`:''}
+        ${imp>0?`<div class="cm"><div class="cm-l">Impr.</div><div class="cm-v">${imp.toLocaleString('pt-BR')}</div></div>`:''}
+      </div>
+      <span class="badge ${badgeClass}">${badgeText}</span>`;
+    p.appendChild(el);
+  }, delay);
+}
+
+function addDivider(label) {
+  const p = document.getElementById('resultsPanel');
+  const d = document.createElement('div');
+  d.className = 'divider-label';
+  d.textContent = label;
+  p.appendChild(d);
+}
+
+// ── META API ─────────────────────────────────────────────────────────────────
+function daysAgo(n) {
+  const d = new Date(); d.setDate(d.getDate() - n);
+  return d.toISOString().split('T')[0];
+}
+function today() { return new Date().toISOString().split('T')[0]; }
+
+async function metaGet(endpoint, params={}) {
+  const url = new URL(`https://graph.facebook.com/v19.0/${endpoint}`);
+  url.searchParams.set('access_token', TOKEN);
+  for (const [k,v] of Object.entries(params)) url.searchParams.set(k, typeof v==='object'?JSON.stringify(v):v);
+  const r = await fetch(url.toString());
+  const d = await r.json();
+  if (d.error) throw new Error(`${d.error.message} (código ${d.error.code})`);
+  return d;
+}
+
+async function fetchInsights(dias=7) {
+  return metaGet(`${ACCOUNT}/insights`, {
+    fields: 'campaign_name,spend,impressions,reach,clicks,ctr,cpc,cpm,frequency,actions,action_values',
+    level:  'campaign',
+    time_range: { since: daysAgo(dias), until: today() },
+    limit:  50,
+  });
+}
+
+async function fetchAccount() {
+  return metaGet(ACCOUNT, { fields: 'name,currency,account_status,amount_spent' });
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+function parseDays(text) {
+  const m = text.match(/(\d+)\s*dia/i);
+  if (m) return Math.min(Math.max(parseInt(m[1]), 1), 90);
+  if (/semana/i.test(text)) return 7;
+  if (/m[eê]s/i.test(text)) return 30;
+  if (/quinzena/i.test(text)) return 15;
+  return 7;
+}
+
+// ── MAIN FLOW ─────────────────────────────────────────────────────────────────
+let running = false;
+
+function resetUI() {
+  running = false;
+  const btn = document.getElementById('runBtn');
+  btn.classList.remove('loading');
+  btn.disabled = false;
+  btn.querySelector('.rl').textContent = '▶ Analisar';
+}
+
+async function run() {
+  if (running) {
+    // Segundo clique = cancelar
+    allIdle();
+    clearFeed();
+    clearResults();
+    resetUI();
+    setStatus('connected');
+    return;
+  }
+  if (!TOKEN || !ACCOUNT) { openSettings(); return; }
+
+  const inp = document.getElementById('cmdInput').value.trim();
+  if (!inp) { document.getElementById('cmdInput').focus(); return; }
+
+  const dias = parseDays(inp);
+
+  running = true;
+  const btn = document.getElementById('runBtn');
+  btn.classList.add('loading');
+  btn.disabled = false; // mantém clicável para cancelar
+  btn.querySelector('.rl').textContent = '⏹ Parar';
+
+  clearFeed();
+  clearResults();
+  allIdle();
+  setStatus('busy');
+
+  try {
+    // ─ 1. TRACE acorda ─
+    setState('trace', 'working');
+    speak('trace', `Buscando ${dias} dias...`, 4000);
+    postMsg('trace', `Recebi: **"${inp}"**\nBuscando dados dos últimos **${dias} dias** na Meta Ads API...`);
+    await wait(600);
+
+    // ─ 2. Fetch real data ─
+    let insights, account;
+    try {
+      [insights, account] = await Promise.all([fetchInsights(dias), fetchAccount()]);
+    } catch(err) {
+      postMsg('trace', `❌ Erro na Meta API: **${err.message}**\nVerifique suas credenciais em ⚙️ Configurações.`);
+      setStatus('error');
+      toast('Erro Meta API: ' + err.message);
+      resetUI();
+      return;
+    }
+
+    const camps   = insights.data || [];
+    const sorted  = [...camps].sort((a,b) => parseFloat(b.spend||0) - parseFloat(a.spend||0));
+
+    const totalSpend = camps.reduce((s,c) => s + parseFloat(c.spend||0), 0);
+    const totalImp   = camps.reduce((s,c) => s + parseInt(c.impressions||0), 0);
+    const totalClick = camps.reduce((s,c) => s + parseInt(c.clicks||0), 0);
+    const avgCTR     = totalImp > 0 ? (totalClick/totalImp*100) : 0;
+    const avgFreq    = camps.length > 0 ? camps.reduce((s,c)=>s+parseFloat(c.frequency||0),0)/camps.length : 0;
+    const pausar     = camps.filter(c => parseFloat(c.ctr||0) < 0.5 && parseFloat(c.spend||0) > 5);
+    const saturados  = camps.filter(c => parseFloat(c.frequency||0) > 3);
+    const lowCTR     = camps.filter(c => parseFloat(c.ctr||0) < 1);
+    const topCamp    = sorted[0];
+
+    // ─ 3. TRACE entrega ─
+    speak('trace', `${camps.length} campanhas! R$ ${totalSpend.toFixed(0)} gasto`, 3500);
+    postMsg('trace', `✅ **${camps.length} campanhas** nos últimos **${dias} dias** — **${account.name || 'carinha da IA'}**\nGasto: **R$ ${totalSpend.toFixed(2)}** · CTR médio: **${avgCTR.toFixed(2)}%** · Freq. média: **${avgFreq.toFixed(1)}**\nDistribuindo análise para o time...`);
+
+    addKPI(`Gasto Total (${dias} dias)`, `R$ ${totalSpend.toFixed(2)}`, account.name || 'carinha da IA', '#43e97b', 0);
+    addKPI('Campanhas', `${camps.length}`, `${pausar.length} para pausar · ${saturados.length} saturadas`, '#4facfe', 150);
+    addKPI('CTR Médio', `${avgCTR.toFixed(2)}%`, avgCTR>=2?'✅ Acima da meta (2%)':avgCTR>=1?'⚠️ Abaixo da meta':'❌ CTR crítico', avgCTR>=2?'#43e97b':avgCTR>=1?'#ffd700':'#ff4d4d', 300);
+
+    setState('trace', 'done');
+    await wait(900);
+
+    // ─ 4. CRIS ─
+    if (!running) return;
+    setState('cris', 'working');
+    speak('cris', saturados.length>0 ? `${saturados.length} saturado(s)!` : 'Frequência ok!', 3500);
+    postMsg('cris', `Verificando frequência dos criativos... **${saturados.length}** campanha(s) com frequência acima de 3.`);
+    await wait(1200);
+    postMsg('cris', saturados.length > 0
+      ? `🔴 Trocar urgente:\n${saturados.map(c=>`**${c.campaign_name.split(']').pop().trim()}** — freq. ${parseFloat(c.frequency).toFixed(1)}`).join('\n')}`
+      : `🟢 Nenhum criativo saturado! Freq. média ${avgFreq.toFixed(1)} — saudável. Monitore diariamente.`);
+    setState('cris', 'done');
+    await wait(900);
+
+    // ─ 5. BUCK ─
+    if (!running) return;
+    setState('buck', 'working');
+    speak('buck', 'Calculando orçamento...', 3500);
+    postMsg('buck', topCamp
+      ? `Campanha com maior gasto: **${topCamp.campaign_name.split(']').pop().trim()}** — R$ ${parseFloat(topCamp.spend).toFixed(2)}`
+      : 'Sem campanhas com gasto significativo.');
+    await wait(1200);
+    postMsg('buck', pausar.length > 0
+      ? `🔴 **${pausar.length} campanha(s)** com CTR < 0.5% e gasto relevante — pausar agora:\n${pausar.map(c=>`**${c.campaign_name.split(']').pop().trim()}** — R$ ${parseFloat(c.spend).toFixed(2)}`).join('\n')}`
+      : `🟢 Budget bem alocado. Quando ROAS > 3x por 3+ dias, posso escalar até +20%.`);
+    setState('buck', 'done');
+    await wait(900);
+
+    // ─ 6. ADA ─
+    if (!running) return;
+    setState('ada', 'working');
+    speak('ada', 'Analisando copies...', 3000);
+    postMsg('ada', lowCTR.length > 0
+      ? `**${lowCTR.length} campanha(s) com CTR < 1%** — copy fraco ou público errado. Crio variações A/B de headline e gancho. Quer que eu comece?`
+      : `Copies performando bem! Posso criar **3 variações A/B** dos melhores para escalar o que já funciona.`);
+    setState('ada', 'done');
+    await wait(900);
+
+    // ─ 7. CLEO ─
+    if (!running) return;
+    setState('cleo', 'working');
+    speak('cleo', 'Montando brief...', 3000);
+    postMsg('cleo', `Formato que mais converte agora: **vídeo vertical 9:16, 25-35 segundos** (Reels/Stories). Gancho nos **primeiros 3 segundos**. Posso criar um roteiro completo cena a cena baseado nos criativos com melhor CTR.`);
+    setState('cleo', 'done');
+    await wait(900);
+
+    // ─ 8. REX — relatório final ─
+    if (!running) return;
+    setState('rex', 'working');
+    speak('rex', 'Gerando relatório...', 4000);
+    const recs = [];
+    if (pausar.length > 0)   recs.push(`→ PAUSAR ${pausar.length} campanha(s) com CTR < 0.5%`);
+    if (saturados.length > 0)recs.push(`→ TROCAR criativos com frequência > 3`);
+    if (topCamp && parseFloat(topCamp.ctr||0) >= 2) recs.push(`→ ESCALAR ${topCamp.campaign_name.split(']').pop().trim()}`);
+    if (lowCTR.length > 0)   recs.push(`→ CRIAR copies A/B para ${lowCTR.length} campanha(s)`);
+    if (recs.length === 0)   recs.push('→ Conta saudável — mantenha monitoramento diário');
+    postMsg('rex', `📋 **Relatório ${dias} dias — ${account.name || 'carinha da IA'}**\nGasto: R$ ${totalSpend.toFixed(2)} · Campanhas: ${camps.length} · Alertas: ${pausar.length+saturados.length}\n\n**Recomendações:**\n${recs.join('\n')}`);
+    setState('rex', 'done');
+
+    // Tabela de campanhas
+    await wait(600);
+    addDivider(`Por campanha — ${dias} dias (maior gasto primeiro)`);
+    sorted.forEach((c, i) => addCampCard(c, i * 100));
+
+    setStatus('done');
+
+  } catch(err) {
+    console.error(err);
+    toast('Erro inesperado: ' + err.message);
+    setStatus('error');
+  }
+
+  resetUI();
+}
+
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 6000);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<h2>Como construir o Time de Agentes?</h2>
+<p class="subtitle">3 abordagens — cada uma com trade-offs diferentes</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0b0d16;padding:12px;border-radius:8px;font-size:10px;height:150px;overflow:hidden">
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <div style="background:#1a1e33;border-radius:4px;padding:3px 8px;font-size:8px;color:#7c89ab">📊 Dashboard</div>
+        <div style="background:#4f6ef7;border-radius:4px;padding:3px 8px;font-size:8px;color:white">🤖 Time de Agentes</div>
+        <div style="background:#1a1e33;border-radius:4px;padding:3px 8px;font-size:8px;color:#7c89ab">🛒 Vendas</div>
+      </div>
+      <div style="display:flex;gap:6px;height:100px">
+        <div style="width:80px;background:#1a1e33;border-radius:6px;padding:6px">
+          <div style="font-size:8px;color:#7c89ab;margin-bottom:5px">AGENTES</div>
+          <div style="background:#4f6ef7;border-radius:4px;padding:4px 5px;font-size:8px;color:white;margin-bottom:3px">📊 Trace ●</div>
+          <div style="background:#20253d;border-radius:4px;padding:4px 5px;font-size:8px;color:#7c89ab;margin-bottom:3px">💰 Buck</div>
+          <div style="background:#20253d;border-radius:4px;padding:4px 5px;font-size:8px;color:#7c89ab;margin-bottom:3px">🎨 Cris</div>
+          <div style="background:#20253d;border-radius:4px;padding:4px 5px;font-size:8px;color:#7c89ab;margin-bottom:3px">📋 Rex</div>
+          <div style="background:#20253d;border-radius:4px;padding:4px 5px;font-size:8px;color:#7c89ab;margin-bottom:3px">✍️ Ada</div>
+          <div style="background:#20253d;border-radius:4px;padding:4px 5px;font-size:8px;color:#7c89ab">🎬 Cleo</div>
+        </div>
+        <div style="flex:1;background:#1a1e33;border-radius:6px;padding:8px">
+          <div style="color:#4f6ef7;font-size:9px;font-weight:700;margin-bottom:5px">📊 Trace</div>
+          <div style="background:#0b0d16;border-radius:4px;padding:5px;font-size:8px;color:#e4eaf7;margin-bottom:4px">Analisei suas campanhas. A Beleza Premium está saturada — frequência 4.2...</div>
+          <div style="display:flex;gap:4px">
+            <div style="background:#22d3a5;border-radius:3px;padding:2px 6px;font-size:7px;color:#0b0d16;font-weight:700">✓ Autorizar</div>
+            <div style="background:#252b47;border-radius:3px;padding:2px 6px;font-size:7px;color:#7c89ab">✗ Ignorar</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Página Própria (Recomendado)</h3>
+      <p>Cria <b>agentes.html</b> — uma página dedicada só para o time. Acesso pelo menu do topo. Os agentes têm espaço total para trabalhar.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0b0d16;padding:12px;border-radius:8px;font-size:10px;height:150px;overflow:hidden">
+      <div style="display:flex;gap:3px;margin-bottom:6px;background:#13162a;padding:4px;border-radius:6px">
+        <div style="border-radius:4px;padding:3px 7px;font-size:8px;color:#7c89ab">Visão Geral</div>
+        <div style="border-radius:4px;padding:3px 7px;font-size:8px;color:#7c89ab">Campanhas</div>
+        <div style="background:#4f6ef7;border-radius:4px;padding:3px 7px;font-size:8px;color:white">🤖 Time</div>
+        <div style="border-radius:4px;padding:3px 7px;font-size:8px;color:#7c89ab">Criativos</div>
+      </div>
+      <div style="display:flex;gap:6px;height:95px">
+        <div style="width:70px;background:#1a1e33;border-radius:6px;padding:6px">
+          <div style="background:#4f6ef7;border-radius:4px;padding:3px 5px;font-size:7px;color:white;margin-bottom:2px">📊 Trace</div>
+          <div style="background:#20253d;border-radius:4px;padding:3px 5px;font-size:7px;color:#7c89ab;margin-bottom:2px">💰 Buck</div>
+          <div style="background:#20253d;border-radius:4px;padding:3px 5px;font-size:7px;color:#7c89ab;margin-bottom:2px">🎨 Cris</div>
+          <div style="background:#20253d;border-radius:4px;padding:3px 5px;font-size:7px;color:#7c89ab">📋 Rex</div>
+        </div>
+        <div style="flex:1;background:#1a1e33;border-radius:6px;padding:6px;font-size:8px;color:#7c89ab">
+          Chat do Trace aparece aqui dentro da aba
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Aba dentro do Dashboard</h3>
+      <p>Adiciona uma aba "🤖 Time" no dashboard existente. Tudo numa página só, mas os agentes ficam espremidos dentro das outras abas.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0b0d16;padding:12px;border-radius:8px;font-size:10px;height:150px;overflow:hidden">
+      <div style="position:relative;height:100%">
+        <div style="background:#1a1e33;border-radius:6px;padding:8px;font-size:8px;color:#7c89ab;margin-bottom:6px">Dashboard normal aqui...</div>
+        <div style="position:absolute;bottom:0;right:0;width:160px;background:#13162a;border-radius:8px 8px 0 0;border:1px solid #252b47;padding:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div style="color:#e4eaf7;font-size:9px;font-weight:700">🤖 Time</div>
+            <div style="display:flex;gap:4px">
+              <div style="background:#20253d;border-radius:4px;padding:2px 5px;font-size:7px;color:#7c89ab">📊</div>
+              <div style="background:#20253d;border-radius:4px;padding:2px 5px;font-size:7px;color:#7c89ab">💰</div>
+              <div style="background:#4f6ef7;border-radius:4px;padding:2px 5px;font-size:7px;color:white">🎨</div>
+            </div>
+          </div>
+          <div style="background:#1a1e33;border-radius:4px;padding:5px;font-size:8px;color:#e4eaf7">Cris tem 1 ação urgente esperando...</div>
+        </div>
+        <div style="position:absolute;bottom:0;right:165px;background:#f75959;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:8px;color:white;font-weight:700">3</div>
+        <div style="position:absolute;bottom:4px;right:168px;background:#4f6ef7;border-radius:8px;padding:4px 8px;font-size:8px;color:white">🤖 Time</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Painel Flutuante</h3>
+      <p>Botão fixo no canto da tela abre um painel lateral. Disponível em qualquer página. Mais compacto, menos espaço para trabalhar.</p>
+    </div>
+  </div>
+
+</div>

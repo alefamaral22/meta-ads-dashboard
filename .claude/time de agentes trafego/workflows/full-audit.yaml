@@ -1,0 +1,43 @@
+name: full-audit
+description: Auditoria completa das campanhas Meta Ads — roda todos os agentes em sequencia
+version: 1.0.0
+squad: time-de-trafego-pago
+
+trigger:
+  manual: true
+  schedule: "0 9 * * 1"  # toda segunda-feira as 9h (cron)
+
+steps:
+  - id: step-1-analise
+    agent: traffic-analyst
+    task: analyze-campaigns
+    description: Analisar performance geral das campanhas
+    output: campaign_analysis
+
+  - id: step-2-criativos
+    agent: creative-reviewer
+    task: review-creatives
+    description: Revisar criativos e identificar saturados
+    depends_on: step-1-analise
+    output: creative_review
+
+  - id: step-3-orcamento
+    agent: budget-optimizer
+    task: optimize-budget
+    description: Gerar plano de otimizacao de orcamento
+    depends_on: step-1-analise
+    output: budget_plan
+
+  - id: step-4-relatorio
+    agent: report-writer
+    task: generate-report
+    description: Consolidar tudo em relatorio final
+    depends_on:
+      - step-1-analise
+      - step-2-criativos
+      - step-3-orcamento
+    output: final_report
+
+output:
+  file: .aios/reports/meta-ads-audit-{date}.md
+  notify: true

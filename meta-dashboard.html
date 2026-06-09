@@ -291,6 +291,7 @@
     <span class="chip chip-green" id="chip-spent"></span>
     <span class="chip chip-blue" id="chip-camps"></span>
     <span class="chip chip-yellow" id="chip-ig"></span>
+    <span id="fx-badge" style="display:none;font-size:.68rem;padding:3px 10px;border-radius:20px;background:#f7c24420;color:#f7c244;font-weight:600;border:1px solid #f7c24450;white-space:nowrap"></span>
     <span id="refresh-ts" style="font-size:.7rem;color:var(--muted)"></span>
     <button id="btn-refresh" onclick="triggerRefresh()" style="padding:5px 13px;border-radius:20px;font-size:.74rem;font-weight:600;cursor:pointer;background:transparent;border:1px solid var(--border);color:var(--dim);transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--dim)'">🔄 Atualizar</button>
   </div>
@@ -696,11 +697,45 @@ function toggleCfg(id, btn) {
   btn.textContent = inp.type === 'password' ? '👁️' : '🙈';
 }
 
+// ── GLOBALS DE CÂMBIO ────────────────────────────────────────────────────────
+let usdToBrl = 5.70;        // cotação USD→BRL (atualizada ao carregar)
+let accountCurrency = 'BRL'; // moeda da conta ativa
+let allAdAccounts = [];      // cópia do /api/data para lookup de moeda
+
 // ── UTILS ────────────────────────────────────────────────────────────────────
-const R = n => 'R$' + parseFloat(n||0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g,'.').replace(/,(\d{2})$/,',$1');
+// R() aplica conversão automática quando a conta está em USD
+const R = n => { const v = parseFloat(n||0) * (accountCurrency === 'USD' ? usdToBrl : 1); return 'R$' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g,'.').replace(/,(\d{2})$/,',$1'); };
+// conv() retorna o valor numérico já convertido (para uso em datasets de gráficos)
+const conv = n => parseFloat(n||0) * (accountCurrency === 'USD' ? usdToBrl : 1);
 const fmt = n => { n = parseInt(n||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); };
 const pct = n => parseFloat(n||0).toFixed(2)+'%';
 const COLORS = ['#4f6ef7','#7c5cfc','#22d3a5','#f7c244','#f75959','#38bdf8','#fb923c','#a78bfa','#f472b6','#34d399','#60a5fa','#e879f9'];
+
+// ── CÂMBIO: busca cotação USD→BRL e atualiza badge ──────────────────────────
+async function fetchExchangeRate() {
+  try {
+    const d = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(r => r.json());
+    const rate = parseFloat(d?.USDBRL?.bid);
+    if (rate > 0) usdToBrl = rate;
+  } catch { /* mantém fallback 5.70 */ }
+  atualizarBadgeCotacao();
+}
+
+function atualizarBadgeCotacao() {
+  const badge = document.getElementById('fx-badge');
+  if (!badge) return;
+  if (accountCurrency === 'USD') {
+    badge.style.display = '';
+    badge.textContent = `💱 USD → R$ ${usdToBrl.toFixed(2).replace('.', ',')}`;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function setCurrency(currency) {
+  accountCurrency = currency || 'BRL';
+  atualizarBadgeCotacao();
+}
 
 Chart.defaults.color = '#7c89ab';
 Chart.defaults.borderColor = '#252b47';
@@ -716,6 +751,7 @@ const mkChart = (id, type, data, opts = {}) => {
 const mkFilterChart = mkChart; // alias — mantido por compatibilidade
 
 // ── LOAD DATA ────────────────────────────────────────────────────────────────
+fetchExchangeRate(); // busca cotação USD→BRL em paralelo com os dados
 fetch('/api/data')
   .then(r => r.json())
   .then(raw => {
@@ -724,7 +760,9 @@ fetch('/api/data')
     document.getElementById('header-ts').textContent = 'Atualizado em ' + new Date(raw.timestamp).toLocaleString('pt-BR');
     document.getElementById('footer-ts').textContent = `Dashboard gerado em ${new Date(raw.timestamp).toLocaleString('pt-BR')} • Meta Graph API v21.0`;
 
-    const mainAcc = raw.adAccounts?.find(a => !a.error && (a.insights_campaigns_max || []).length > 0);
+    allAdAccounts = raw.adAccounts || [];
+    const mainAcc = allAdAccounts.find(a => !a.error && (a.insights_campaigns_max || []).length > 0);
+    setCurrency(mainAcc?.currency);
     buildAccountChips(raw.adAccounts);
     const allCampIns = mainAcc?.insights_campaigns_max || [];
     const monthly = mainAcc?.insights_monthly || [];
@@ -746,7 +784,7 @@ fetch('/api/data')
       return s + parseInt(lc?.value || 0);
     }, 0);
 
-    document.getElementById('chip-spent').textContent = `R$${totalSpend.toFixed(0)} investido`;
+    document.getElementById('chip-spent').textContent = `R$${(totalSpend * (accountCurrency === 'USD' ? usdToBrl : 1)).toFixed(0)} investido`;
     document.getElementById('chip-camps').textContent = allCampIns.length + ' campanhas';
     document.getElementById('chip-ig').textContent = igPages.length + ' contas IG';
 
@@ -776,9 +814,9 @@ fetch('/api/data')
 
     // ── MONTHLY CHARTS ───────────────────────────────────────────────────────
     const mLabels = monthly.map(m => m.date_start?.slice(0,7));
-    const mSpend  = monthly.map(m => parseFloat(m.spend||0));
+    const mSpend  = monthly.map(m => conv(m.spend));
     const mCTR    = monthly.map(m => parseFloat(m.ctr||0));
-    const mCPC    = monthly.map(m => parseFloat(m.cpc||0));
+    const mCPC    = monthly.map(m => conv(m.cpc));
     const mImp    = monthly.map(m => parseInt(m.impressions||0));
     const mClicks = monthly.map(m => parseInt(m.clicks||0));
 
@@ -802,7 +840,7 @@ fetch('/api/data')
     const sortedCPC = [...allCampIns].filter(c => parseFloat(c.spend||0) > 50).sort((a,b) => parseFloat(a.cpc||0) - parseFloat(b.cpc||0)).slice(0, 8);
     mkChart('ch-cpc-bar', 'bar', {
       labels: sortedCPC.map(c => c.campaign_name.split(' ').slice(0,3).join(' ')),
-      datasets: [{ label: 'CPC (R$)', data: sortedCPC.map(c => parseFloat(c.cpc||0)), backgroundColor: sortedCPC.map((_, i) => COLORS[i] + 'cc'), borderRadius: 5 }]
+      datasets: [{ label: 'CPC (R$)', data: sortedCPC.map(c => conv(c.cpc)), backgroundColor: sortedCPC.map((_, i) => COLORS[i] + 'cc'), borderRadius: 5 }]
     }, { plugins: { legend: { display: false } }, indexAxis: 'y' });
 
     // ── REACH BAR ────────────────────────────────────────────────────────────
@@ -826,7 +864,7 @@ fetch('/api/data')
     // ── SPEND PIE ────────────────────────────────────────────────────────────
     mkChart('ch-spend-pie', 'doughnut', {
       labels: allCampIns.map(c => c.campaign_name.split(' ').slice(0,3).join(' ')),
-      datasets: [{ data: allCampIns.map(c => parseFloat(c.spend||0)), backgroundColor: COLORS.map(c => c + 'cc'), borderColor: COLORS, borderWidth: 2 }]
+      datasets: [{ data: allCampIns.map(c => conv(c.spend)), backgroundColor: COLORS.map(c => c + 'cc'), borderColor: COLORS, borderWidth: 2 }]
     });
 
     // ── INSTAGRAM ────────────────────────────────────────────────────────────
@@ -1110,8 +1148,13 @@ function renderInsights(data) {
     if (chipCamps) chipCamps.textContent = camps.length + ' campanhas · ' + accountName;
   }
 
+  // Garantir que badge de câmbio reflita a conta atual
+  atualizarBadgeCotacao();
+
   // ── recalcular totais ────────────────────────────────────────────────────
   const totalSpend       = camps.reduce((s, c) => s + parseFloat(c.spend || 0), 0);
+  const chipSpentEl = document.getElementById('chip-spent');
+  if (chipSpentEl) chipSpentEl.textContent = `R$${(totalSpend * (accountCurrency === 'USD' ? usdToBrl : 1)).toFixed(0)} investido`;
   const totalImpressions = camps.reduce((s, c) => s + parseInt(c.impressions || 0), 0);
   const totalClicks      = camps.reduce((s, c) => s + parseInt(c.clicks || 0), 0);
   const totalReach       = camps.reduce((s, c) => s + parseInt(c.reach || 0), 0);
@@ -1149,9 +1192,9 @@ function renderInsights(data) {
 
   // ── gráficos de tendência (daily) ─────────────────────────────────────────
   const dLabels = daily.map(d => d.date_start?.slice(5));   // MM-DD
-  const dSpend  = daily.map(d => parseFloat(d.spend || 0));
+  const dSpend  = daily.map(d => conv(d.spend));
   const dCTR    = daily.map(d => parseFloat(d.ctr || 0));
-  const dCPC    = daily.map(d => parseFloat(d.cpc || 0));
+  const dCPC    = daily.map(d => conv(d.cpc));
   const dImp    = daily.map(d => parseInt(d.impressions || 0));
   const dClk    = daily.map(d => parseInt(d.clicks || 0));
 
@@ -1180,7 +1223,7 @@ function renderInsights(data) {
 
   mkFilterChart('ch-spend-pie', 'doughnut', {
     labels: camps.map(c => c.campaign_name.split(' ').slice(0, 3).join(' ')),
-    datasets: [{ data: camps.map(c => parseFloat(c.spend || 0)), backgroundColor: COLORS.map(c => c + 'cc'), borderColor: COLORS, borderWidth: 2 }]
+    datasets: [{ data: camps.map(c => conv(c.spend)), backgroundColor: COLORS.map(c => c + 'cc'), borderColor: COLORS, borderWidth: 2 }]
   });
 }
 
@@ -1265,7 +1308,7 @@ function renderCPCChart(camps) {
   const sorted = [...camps].filter(c => parseFloat(c.spend || 0) > 10).sort((a, b) => parseFloat(a.cpc || 0) - parseFloat(b.cpc || 0)).slice(0, 8);
   mkFilterChart('ch-cpc-bar', 'bar', {
     labels: sorted.map(c => c.campaign_name.split(' ').slice(0, 3).join(' ')),
-    datasets: [{ label: 'CPC (R$)', data: sorted.map(c => parseFloat(c.cpc || 0)), backgroundColor: sorted.map((_, i) => COLORS[i] + 'cc'), borderRadius: 5 }]
+    datasets: [{ label: 'CPC (R$)', data: sorted.map(c => conv(c.cpc)), backgroundColor: sorted.map((_, i) => COLORS[i] + 'cc'), borderRadius: 5 }]
   }, { plugins: { legend: { display: false } }, indexAxis: 'y' });
 }
 
@@ -1330,7 +1373,7 @@ function buildFallbackRecs(camps, monthly, totalSpend, igPages) {
   }, 0);
   if (totalPurchases === 0) recs.push({
     ico: '🔥', prio: 'CRÍTICO', titulo: 'Pixel não registra compras',
-    corpo: `R$${totalSpend.toFixed(0)} investidos sem ZERO conversões rastreadas em ${camps.length} campanhas. ROAS real impossível de calcular.`,
+    corpo: `${R(totalSpend)} investidos sem ZERO conversões rastreadas em ${camps.length} campanhas. ROAS real impossível de calcular.`,
     acao: '→ Verifique instalação do Pixel e use a aba "Registrar Venda" para enviar eventos via CAPI'
   });
 
@@ -1541,6 +1584,10 @@ function selectAccount(accountId) {
   document.querySelectorAll('[data-account]').forEach(el => {
     el.classList.toggle('active', el.dataset.account === accountId);
   });
+
+  // Atualizar moeda da conta selecionada para conversão correta
+  const acc = allAdAccounts.find(a => a.id === accountId);
+  setCurrency(acc?.currency);
 
   // Re-buscar com o filtro de período atual
   const activePreset = document.querySelector('.fp[data-preset].active')?.dataset.preset;

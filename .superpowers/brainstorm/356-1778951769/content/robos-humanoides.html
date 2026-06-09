@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0b0d16;color:#e4eaf7;font-family:'Segoe UI',system-ui,sans-serif;padding:32px}
+h2{font-size:1.2rem;font-weight:700;margin-bottom:6px;color:#e4eaf7}
+p{font-size:.85rem;color:#7c89ab;margin-bottom:32px}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:20px}
+.agent-card{display:flex;flex-direction:column;align-items:center;gap:10px;background:#13162a;border:1px solid #252b47;border-radius:14px;padding:20px 12px}
+.agent-card:hover{border-color:#4f6ef7;transform:translateY(-2px);transition:all .2s}
+.robot-name{font-weight:700;font-size:.85rem}
+.robot-role{font-size:.7rem;color:#7c89ab;text-align:center}
+.glow-cyan{filter:drop-shadow(0 0 6px #00e5ff88)}
+.glow-gold{filter:drop-shadow(0 0 6px #ffd70088)}
+.glow-purple{filter:drop-shadow(0 0 6px #bf5fff88)}
+.glow-green{filter:drop-shadow(0 0 6px #00ff9088)}
+.glow-red{filter:drop-shadow(0 0 6px #ff445588)}
+.glow-blue{filter:drop-shadow(0 0 6px #38bdf888)}
+</style>
+</head>
+<body>
+
+<h2>Time de Agentes — Avatares Robóticos</h2>
+<p>Robôs humanoides futuristas, cada um com personalidade visual única</p>
+
+<div class="grid">
+
+  <!-- TRACE — Azul analítico -->
+  <div class="agent-card">
+    <svg width="90" height="110" viewBox="0 0 90 110" class="glow-cyan">
+      <defs>
+        <radialGradient id="t-face" cx="50%" cy="40%"><stop offset="0%" stop-color="#d0e8ff"/><stop offset="100%" stop-color="#7aadde"/></radialGradient>
+        <radialGradient id="t-eye" cx="30%" cy="30%"><stop offset="0%" stop-color="#00e5ff"/><stop offset="100%" stop-color="#0066aa"/></radialGradient>
+        <linearGradient id="t-armor" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#cde4f8"/><stop offset="100%" stop-color="#8ab4d8"/></linearGradient>
+        <filter id="t-glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <!-- pescoço -->
+      <rect x="37" y="68" width="16" height="10" rx="3" fill="#8ab4d8"/>
+      <line x1="40" y1="70" x2="40" y2="77" stroke="#00e5ff" stroke-width=".8" opacity=".6"/>
+      <line x1="45" y1="70" x2="45" y2="77" stroke="#00e5ff" stroke-width=".8" opacity=".6"/>
+      <line x1="50" y1="70" x2="50" y2="77" stroke="#00e5ff" stroke-width=".8" opacity=".6"/>
+      <!-- ombros -->
+      <ellipse cx="20" cy="88" rx="14" ry="10" fill="url(#t-armor)" opacity=".9"/>
+      <ellipse cx="70" cy="88" rx="14" ry="10" fill="url(#t-armor)" opacity=".9"/>
+      <!-- peito -->
+      <rect x="24" y="78" width="42" height="28" rx="8" fill="url(#t-armor)"/>
+      <rect x="30" y="84" width="30" height="16" rx="4" fill="#0b1a2e" opacity=".6"/>
+      <!-- linhas de circuito peito -->
+      <line x1="33" y1="88" x2="57" y2="88" stroke="#00e5ff" stroke-width="1" opacity=".8" filter="url(#t-glow)"/>
+      <line x1="33" y1="92" x2="50" y2="92" stroke="#00e5ff" stroke-width=".8" opacity=".5"/>
+      <circle cx="57" cy="92" r="2" fill="#00e5ff" opacity=".8"/>
+      <!-- cabeça -->
+      <ellipse cx="45" cy="42" rx="28" ry="30" fill="url(#t-face)"/>
+      <!-- sombra lateral -->
+      <ellipse cx="18" cy="42" rx="5" ry="22" fill="#3a6a9a" opacity=".4"/>
+      <ellipse cx="72" cy="42" rx="5" ry="22" fill="#3a6a9a" opacity=".4"/>
+      <!-- testa detalhes -->
+      <rect x="30" y="16" width="30" height="4" rx="2" fill="#8ab4d8" opacity=".6"/>
+      <!-- olhos -->
+      <ellipse cx="32" cy="44" rx="9" ry="7" fill="#0a1520"/>
+      <ellipse cx="58" cy="44" rx="9" ry="7" fill="#0a1520"/>
+      <ellipse cx="32" cy="44" rx="6" ry="5" fill="url(#t-eye)" filter="url(#t-glow)"/>
+      <ellipse cx="58" cy="44" rx="6" ry="5" fill="url(#t-eye)" filter="url(#t-glow)"/>
+      <circle cx="30" cy="42" r="2" fill="white" opacity=".6"/>
+      <circle cx="56" cy="42" r="2" fill="white" opacity=".6"/>
+      <!-- nariz sutil -->
+      <path d="M43 52 Q45 55 47 52" stroke="#7aadde" stroke-width="1" fill="none" opacity=".5"/>
+      <!-- boca -->
+      <path d="M35 60 Q45 65 55 60" stroke="#8ab4d8" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      <!-- detalhe testa superior -->
+      <ellipse cx="45" cy="14" rx="6" ry="4" fill="#8ab4d8" opacity=".5"/>
+      <circle cx="45" cy="11" r="3" fill="#00e5ff" opacity=".7" filter="url(#t-glow)"/>
+    </svg>
+    <div class="robot-name">Trace</div>
+    <div class="robot-role">Analista de Tráfego</div>
+  </div>
+
+  <!-- BUCK — Dourado financeiro -->
+  <div class="agent-card">
+    <svg width="90" height="110" viewBox="0 0 90 110" class="glow-gold">
+      <defs>
+        <radialGradient id="b-face" cx="50%" cy="40%"><stop offset="0%" stop-color="#fff8e0"/><stop offset="100%" stop-color="#c9920a"/></radialGradient>
+        <radialGradient id="b-eye" cx="30%" cy="30%"><stop offset="0%" stop-color="#ffd700"/><stop offset="100%" stop-color="#b8860b"/></radialGradient>
+        <linearGradient id="b-armor" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fff0b0"/><stop offset="100%" stop-color="#c9920a"/></linearGradient>
+        <filter id="b-glow"><feGaussianBlur stdDeviation="2.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <rect x="37" y="68" width="16" height="10" rx="3" fill="#c9920a"/>
+      <line x1="40" y1="70" x2="40" y2="77" stroke="#ffd700" stroke-width=".8" opacity=".7"/>
+      <line x1="45" y1="70" x2="45" y2="77" stroke="#ffd700" stroke-width=".8" opacity=".7"/>
+      <line x1="50" y1="70" x2="50" y2="77" stroke="#ffd700" stroke-width=".8" opacity=".7"/>
+      <ellipse cx="20" cy="88" rx="14" ry="10" fill="url(#b-armor)"/>
+      <ellipse cx="70" cy="88" rx="14" ry="10" fill="url(#b-armor)"/>
+      <rect x="24" y="78" width="42" height="28" rx="8" fill="url(#b-armor)"/>
+      <rect x="30" y="84" width="30" height="16" rx="4" fill="#1a0f00" opacity=".6"/>
+      <text x="38" y="96" font-size="12" fill="#ffd700" font-weight="bold" filter="url(#b-glow)">$$$</text>
+      <!-- cabeça mais larga/robusta -->
+      <ellipse cx="45" cy="42" rx="30" ry="28" fill="url(#b-face)"/>
+      <ellipse cx="16" cy="42" rx="5" ry="20" fill="#c9920a" opacity=".4"/>
+      <ellipse cx="74" cy="42" rx="5" ry="20" fill="#c9920a" opacity=".4"/>
+      <!-- sobrancelhas grossas -->
+      <rect x="24" y="35" width="14" height="3" rx="1.5" fill="#8b6000" opacity=".6"/>
+      <rect x="52" y="35" width="14" height="3" rx="1.5" fill="#8b6000" opacity=".6"/>
+      <!-- olhos -->
+      <ellipse cx="31" cy="45" rx="10" ry="7" fill="#0a0800"/>
+      <ellipse cx="59" cy="45" rx="10" ry="7" fill="#0a0800"/>
+      <ellipse cx="31" cy="45" rx="7" ry="5" fill="url(#b-eye)" filter="url(#b-glow)"/>
+      <ellipse cx="59" cy="45" rx="7" ry="5" fill="url(#b-eye)" filter="url(#b-glow)"/>
+      <circle cx="29" cy="43" r="2" fill="white" opacity=".5"/>
+      <circle cx="57" cy="43" r="2" fill="white" opacity=".5"/>
+      <!-- boca larga satisfeita -->
+      <path d="M33 58 Q45 66 57 58" stroke="#c9920a" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <ellipse cx="45" cy="12" rx="8" ry="5" fill="#c9920a" opacity=".5"/>
+      <circle cx="45" cy="9" r="4" fill="#ffd700" opacity=".8" filter="url(#b-glow)"/>
+    </svg>
+    <div class="robot-name">Buck</div>
+    <div class="robot-role">Otimizador de Orçamento</div>
+  </div>
+
+  <!-- CRIS — Roxo criativo -->
+  <div class="agent-card">
+    <svg width="90" height="110" viewBox="0 0 90 110" class="glow-purple">
+      <defs>
+        <radialGradient id="c-face" cx="50%" cy="40%"><stop offset="0%" stop-color="#f0e0ff"/><stop offset="100%" stop-color="#9c59cc"/></radialGradient>
+        <radialGradient id="c-eye" cx="30%" cy="30%"><stop offset="0%" stop-color="#e040fb"/><stop offset="100%" stop-color="#7b1fa2"/></radialGradient>
+        <linearGradient id="c-armor" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#e8ccff"/><stop offset="100%" stop-color="#9c59cc"/></linearGradient>
+        <filter id="c-glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <rect x="37" y="68" width="16" height="10" rx="3" fill="#9c59cc"/>
+      <ellipse cx="20" cy="88" rx="14" ry="10" fill="url(#c-armor)"/>
+      <ellipse cx="70" cy="88" rx="14" ry="10" fill="url(#c-armor)"/>
+      <rect x="24" y="78" width="42" height="28" rx="8" fill="url(#c-armor)"/>
+      <rect x="30" y="84" width="30" height="16" rx="4" fill="#1a0020" opacity=".6"/>
+      <circle cx="36" cy="92" r="3" fill="#e040fb" opacity=".8" filter="url(#c-glow)"/>
+      <circle cx="45" cy="92" r="3" fill="#00e5ff" opacity=".8" filter="url(#c-glow)"/>
+      <circle cx="54" cy="92" r="3" fill="#ffd700" opacity=".8" filter="url(#c-glow)"/>
+      <!-- cabeça mais fina/elegante -->
+      <ellipse cx="45" cy="42" rx="25" ry="31" fill="url(#c-face)"/>
+      <ellipse cx="21" cy="42" rx="4" ry="22" fill="#9c59cc" opacity=".4"/>
+      <ellipse cx="69" cy="42" rx="4" ry="22" fill="#9c59cc" opacity=".4"/>
+      <!-- cabelo/headband estilizado -->
+      <path d="M20 28 Q45 18 70 28" stroke="#e040fb" stroke-width="3" fill="none" opacity=".7" filter="url(#c-glow)"/>
+      <!-- olhos amendoados -->
+      <ellipse cx="32" cy="43" rx="8" ry="6" fill="#0a0010"/>
+      <ellipse cx="58" cy="43" rx="8" ry="6" fill="#0a0010"/>
+      <ellipse cx="32" cy="43" rx="5.5" ry="4" fill="url(#c-eye)" filter="url(#c-glow)"/>
+      <ellipse cx="58" cy="43" rx="5.5" ry="4" fill="url(#c-eye)" filter="url(#c-glow)"/>
+      <circle cx="30" cy="41" r="1.5" fill="white" opacity=".7"/>
+      <circle cx="56" cy="41" r="1.5" fill="white" opacity=".7"/>
+      <!-- cílios -->
+      <line x1="26" y1="38" x2="24" y2="35" stroke="#e040fb" stroke-width="1" opacity=".6"/>
+      <line x1="30" y1="37" x2="29" y2="34" stroke="#e040fb" stroke-width="1" opacity=".6"/>
+      <line x1="52" y1="37" x2="51" y2="34" stroke="#e040fb" stroke-width="1" opacity=".6"/>
+      <line x1="56" y1="38" x2="54" y2="35" stroke="#e040fb" stroke-width="1" opacity=".6"/>
+      <!-- boca sorridente -->
+      <path d="M36 58 Q45 64 54 58" stroke="#c080ff" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      <ellipse cx="45" cy="11" rx="7" ry="4" fill="#9c59cc" opacity=".5"/>
+      <circle cx="45" cy="8" r="3.5" fill="#e040fb" opacity=".8" filter="url(#c-glow)"/>
+    </svg>
+    <div class="robot-name">Cris</div>
+    <div class="robot-role">Revisora de Criativos</div>
+  </div>
+
+  <!-- REX — Verde dados -->
+  <div class="agent-card">
+    <svg width="90" height="110" viewBox="0 0 90 110" class="glow-green">
+      <defs>
+        <radialGradient id="r-face" cx="50%" cy="40%"><stop offset="0%" stop-color="#d0ffe8"/><stop offset="100%" stop-color="#1a8a5a"/></radialGradient>
+        <radialGradient id="r-eye" cx="30%" cy="30%"><stop offset="0%" stop-color="#00ff90"/><stop offset="100%" stop-color="#007a40"/></radialGradient>
+        <linearGradient id="r-armor" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#b0ffd8"/><stop offset="100%" stop-color="#1a8a5a"/></linearGradient>
+        <filter id="r-glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <rect x="37" y="68" width="16" height="10" rx="3" fill="#1a8a5a"/>
+      <ellipse cx="20" cy="88" rx="14" ry="10" fill="url(#r-armor)"/>
+      <ellipse cx="70" cy="88" rx="14" ry="10" fill="url(#r-armor)"/>
+      <rect x="24" y="78" width="42" height="28" rx="8" fill="url(#r-armor)"/>
+      <rect x="28" y="82" width="34" height="20" rx="3" fill="#001a0d" opacity=".7"/>
+      <!-- tela de dados no peito -->
+      <line x1="31" y1="87" x2="59" y2="87" stroke="#00ff90" stroke-width=".8" opacity=".7"/>
+      <line x1="31" y1="90" x2="52" y2="90" stroke="#00ff90" stroke-width=".8" opacity=".5"/>
+      <line x1="31" y1="93" x2="56" y2="93" stroke="#00ff90" stroke-width=".8" opacity=".6"/>
+      <line x1="31" y1="96" x2="48" y2="96" stroke="#00ff90" stroke-width=".8" opacity=".4"/>
+      <!-- cabeça mais quadrada/robusta -->
+      <rect x="15" y="15" width="60" height="55" rx="12" fill="url(#r-face)"/>
+      <rect x="11" y="28" width="8" height="28" rx="4" fill="#1a8a5a" opacity=".5"/>
+      <rect x="71" y="28" width="8" height="28" rx="4" fill="#1a8a5a" opacity=".5"/>
+      <!-- visor scanner no topo -->
+      <rect x="20" y="18" width="50" height="10" rx="3" fill="#001a0d" opacity=".7"/>
+      <rect x="22" y="20" width="20" height="6" rx="2" fill="#00ff90" opacity=".6" filter="url(#r-glow)"/>
+      <!-- olhos scanner horizontais -->
+      <rect x="20" y="38" width="22" height="10" rx="3" fill="#001a0d"/>
+      <rect x="48" y="38" width="22" height="10" rx="3" fill="#001a0d"/>
+      <rect x="21" y="39" width="14" height="8" rx="2" fill="url(#r-eye)" filter="url(#r-glow)"/>
+      <rect x="49" y="39" width="14" height="8" rx="2" fill="url(#r-eye)" filter="url(#r-glow)"/>
+      <!-- boca reta -->
+      <rect x="28" y="57" width="34" height="5" rx="2.5" fill="#001a0d" opacity=".7"/>
+      <rect x="30" y="58" width="12" height="3" rx="1.5" fill="#00ff90" opacity=".6"/>
+      <circle cx="45" cy="10" r="4" fill="#00ff90" opacity=".8" filter="url(#r-glow)"/>
+    </svg>
+    <div class="robot-name">Rex</div>
+    <div class="robot-role">Gerador de Relatórios</div>
+  </div>
+
+  <!-- ADA — Vermelho criação -->
+  <div class="agent-card">
+    <svg width="90" height="110" viewBox="0 0 90 110" class="glow-red">
+      <defs>
+        <radialGradient id="a-face" cx="50%" cy="40%"><stop offset="0%" stop-color="#ffe0e0"/><stop offset="100%" stop-color="#cc2020"/></radialGradient>
+        <radialGradient id="a-eye" cx="30%" cy="30%"><stop offset="0%" stop-color="#ff6060"/><stop offset="100%" stop-color="#990000"/></radialGradient>
+        <linearGradient id="a-armor" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffc0c0"/><stop offset="100%" stop-color="#cc2020"/></linearGradient>
+        <filter id="a-glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <rect x="37" y="68" width="16" height="10" rx="3" fill="#cc2020"/>
+      <ellipse cx="20" cy="88" rx="14" ry="10" fill="url(#a-armor)"/>
+      <ellipse cx="70" cy="88" rx="14" ry="10" fill="url(#a-armor)"/>
+      <rect x="24" y="78" width="42" height="28" rx="8" fill="url(#a-armor)"/>
+      <rect x="30" y="84" width="30" height="16" rx="4" fill="#1a0000" opacity=".6"/>
+      <!-- caneta no peito -->
+      <line x1="33" y1="88" x2="57" y2="95" stroke="#ff6060" stroke-width="1.5" opacity=".8" filter="url(#a-glow)"/>
+      <polygon points="57,93 60,97 54,97" fill="#ff6060" opacity=".8"/>
+      <!-- cabeça com queixo pontiagudo -->
+      <path d="M17 30 Q17 15 45 13 Q73 15 73 30 L73 60 Q73 72 45 75 Q17 72 17 60 Z" fill="url(#a-face)"/>
+      <ellipse cx="13" cy="44" rx="5" ry="18" fill="#cc2020" opacity=".4"/>
+      <ellipse cx="77" cy="44" rx="5" ry="18" fill="#cc2020" opacity=".4"/>
+      <!-- faixa testa -->
+      <rect x="20" y="22" width="50" height="6" rx="3" fill="#cc2020" opacity=".4"/>
+      <!-- olhos pensativos -->
+      <ellipse cx="32" cy="43" rx="9" ry="7" fill="#0a0000"/>
+      <ellipse cx="58" cy="43" rx="9" ry="7" fill="#0a0000"/>
+      <ellipse cx="32" cy="43" rx="6" ry="5" fill="url(#a-eye)" filter="url(#a-glow)"/>
+      <ellipse cx="58" cy="43" rx="6" ry="5" fill="url(#a-eye)" filter="url(#a-glow)"/>
+      <!-- pupila olhando levemente pra cima -->
+      <circle cx="31" cy="41" r="2.5" fill="white" opacity=".5"/>
+      <circle cx="57" cy="41" r="2.5" fill="white" opacity=".5"/>
+      <!-- boca determinada reta -->
+      <line x1="35" y1="60" x2="55" y2="60" stroke="#cc4040" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="45" cy="9" r="4" fill="#ff4444" opacity=".8" filter="url(#a-glow)"/>
+    </svg>
+    <div class="robot-name">Ada</div>
+    <div class="robot-role">Criadora de Anúncios</div>
+  </div>
+
+  <!-- CLEO — Azul claro cinema -->
+  <div class="agent-card">
+    <svg width="90" height="110" viewBox="0 0 90 110" class="glow-blue">
+      <defs>
+        <radialGradient id="cl-face" cx="50%" cy="40%"><stop offset="0%" stop-color="#e0f8ff"/><stop offset="100%" stop-color="#0077aa"/></radialGradient>
+        <radialGradient id="cl-eye" cx="30%" cy="30%"><stop offset="0%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#0050aa"/></radialGradient>
+        <linearGradient id="cl-armor" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#b8eeff"/><stop offset="100%" stop-color="#0077aa"/></linearGradient>
+        <filter id="cl-glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <rect x="37" y="68" width="16" height="10" rx="3" fill="#0077aa"/>
+      <ellipse cx="20" cy="88" rx="14" ry="10" fill="url(#cl-armor)"/>
+      <ellipse cx="70" cy="88" rx="14" ry="10" fill="url(#cl-armor)"/>
+      <rect x="24" y="78" width="42" height="28" rx="8" fill="url(#cl-armor)"/>
+      <rect x="30" y="84" width="30" height="16" rx="4" fill="#000d1a" opacity=".7"/>
+      <!-- lente câmera no peito -->
+      <circle cx="45" cy="92" r="7" fill="#000d1a" stroke="#38bdf8" stroke-width="1.2"/>
+      <circle cx="45" cy="92" r="4" fill="url(#cl-eye)" filter="url(#cl-glow)"/>
+      <circle cx="45" cy="92" r="2" fill="#e0f8ff"/>
+      <!-- cabeça oval elegante -->
+      <ellipse cx="45" cy="42" rx="27" ry="30" fill="url(#cl-face)"/>
+      <ellipse cx="19" cy="42" rx="5" ry="21" fill="#0077aa" opacity=".4"/>
+      <ellipse cx="71" cy="42" rx="5" ry="21" fill="#0077aa" opacity=".4"/>
+      <!-- visor câmera na testa -->
+      <ellipse cx="45" cy="22" rx="12" ry="8" fill="#000d1a" opacity=".7"/>
+      <ellipse cx="45" cy="22" rx="8" ry="5" fill="url(#cl-eye)" filter="url(#cl-glow)" opacity=".8"/>
+      <ellipse cx="45" cy="22" rx="4" ry="3" fill="#e0f8ff" opacity=".8"/>
+      <!-- olhos grandes tipo câmera -->
+      <circle cx="32" cy="46" rx="9" cy="46" r="9" fill="#000d1a"/>
+      <circle cx="58" cy="46" r="9" fill="#000d1a"/>
+      <circle cx="32" cy="46" r="6.5" fill="url(#cl-eye)" filter="url(#cl-glow)"/>
+      <circle cx="58" cy="46" r="6.5" fill="url(#cl-eye)" filter="url(#cl-glow)"/>
+      <circle cx="32" cy="46" r="3" fill="#e0f8ff"/>
+      <circle cx="58" cy="46" r="3" fill="#e0f8ff"/>
+      <circle cx="30" cy="44" r="1.2" fill="white" opacity=".8"/>
+      <circle cx="56" cy="44" r="1.2" fill="white" opacity=".8"/>
+      <!-- boca curva suave -->
+      <path d="M36 60 Q45 65 54 60" stroke="#38bdf8" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="robot-name">Cleo</div>
+    <div class="robot-role">Diretora de Criativos</div>
+  </div>
+
+</div>
+
+</body>
+</html>

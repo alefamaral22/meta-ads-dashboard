@@ -1,0 +1,79 @@
+<h2>Como os agentes devem aparecer no dashboard?</h2>
+<p class="subtitle">Escolha o layout que parece mais com o que você imaginou</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#13162a;padding:12px;border-radius:8px;font-family:monospace;font-size:11px">
+      <div style="display:flex;gap:8px;height:120px">
+        <div style="width:90px;background:#1a1e33;border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:6px">
+          <div style="font-size:9px;color:#7c89ab;margin-bottom:4px">AGENTES</div>
+          <div style="background:#4f6ef7;border-radius:4px;padding:4px 6px;font-size:9px;color:white">📊 Trace</div>
+          <div style="background:#20253d;border-radius:4px;padding:4px 6px;font-size:9px;color:#7c89ab">💰 Buck</div>
+          <div style="background:#20253d;border-radius:4px;padding:4px 6px;font-size:9px;color:#7c89ab">🎨 Cris</div>
+          <div style="background:#20253d;border-radius:4px;padding:4px 6px;font-size:9px;color:#7c89ab">📋 Rex</div>
+        </div>
+        <div style="flex:1;background:#1a1e33;border-radius:6px;padding:8px">
+          <div style="font-size:9px;color:#4f6ef7;margin-bottom:6px">📊 Trace — Analista</div>
+          <div style="background:#20253d;border-radius:4px;padding:6px;font-size:8px;color:#e4eaf7;margin-bottom:4px">CTR caiu 0.8% esta semana. Campanha "Verão" precisa de atenção.</div>
+          <div style="display:flex;gap:4px;margin-top:6px">
+            <div style="background:#22d3a5;border-radius:3px;padding:2px 6px;font-size:8px;color:#0b0d16">✓ Autorizar</div>
+            <div style="background:#f75959;border-radius:3px;padding:2px 6px;font-size:8px;color:white">✗ Ignorar</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Sidebar com Agentes</h3>
+      <p>Painel lateral fixo com os agentes. Clicar num agente abre sua área de trabalho ao lado. Parecido com um chat de equipe.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#13162a;padding:12px;border-radius:8px;font-family:monospace;font-size:11px">
+      <div style="height:120px">
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <div style="background:#4f6ef7;border-radius:6px;padding:5px 8px;font-size:8px;color:white;display:flex;align-items:center;gap:4px"><span>📊</span><div><div style="font-weight:700">Trace</div><div style="color:rgba(255,255,255,0.7)">● Analisando</div></div></div>
+          <div style="background:#1a1e33;border-radius:6px;padding:5px 8px;font-size:8px;color:#7c89ab;display:flex;align-items:center;gap:4px"><span>💰</span><div><div>Buck</div><div>● Aguardando</div></div></div>
+          <div style="background:#1a1e33;border-radius:6px;padding:5px 8px;font-size:8px;color:#7c89ab;display:flex;align-items:center;gap:4px"><span>🎨</span><div><div>Cris</div><div>● Aguardando</div></div></div>
+          <div style="background:#1a1e33;border-radius:6px;padding:5px 8px;font-size:8px;color:#7c89ab;display:flex;align-items:center;gap:4px"><span>📋</span><div><div>Rex</div><div>● Pronto</div></div></div>
+        </div>
+        <div style="background:#1a1e33;border-radius:6px;padding:8px;font-size:8px;color:#e4eaf7">
+          <div style="color:#4f6ef7;margin-bottom:4px;font-weight:600">📊 Trace está analisando suas campanhas...</div>
+          <div style="background:#20253d;border-radius:4px;padding:5px;color:#7c89ab">3 insights encontrados • 1 ação recomendada</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Cards de Agentes no Topo</h3>
+      <p>Cada agente aparece como um card clicável no topo da aba. Mostra status em tempo real. Área principal exibe o agente ativo.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#13162a;padding:12px;border-radius:8px;font-family:monospace;font-size:11px">
+      <div style="height:120px">
+        <div style="display:flex;gap:3px;margin-bottom:8px;background:#0b0d16;padding:4px;border-radius:6px">
+          <div style="background:#4f6ef7;border-radius:4px;padding:4px 8px;font-size:8px;color:white">📊 Trace</div>
+          <div style="border-radius:4px;padding:4px 8px;font-size:8px;color:#7c89ab">💰 Buck</div>
+          <div style="border-radius:4px;padding:4px 8px;font-size:8px;color:#7c89ab">🎨 Cris</div>
+          <div style="border-radius:4px;padding:4px 8px;font-size:8px;color:#7c89ab">📋 Rex</div>
+          <div style="border-radius:4px;padding:4px 8px;font-size:8px;color:#7c89ab">✍️ Ada</div>
+          <div style="border-radius:4px;padding:4px 8px;font-size:8px;color:#7c89ab">🎬 Cleo</div>
+        </div>
+        <div style="background:#1a1e33;border-radius:6px;padding:8px;font-size:8px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+            <div style="width:28px;height:28px;background:linear-gradient(135deg,#4f6ef7,#7c5cfc);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px">📊</div>
+            <div><div style="color:#e4eaf7;font-weight:700">Trace</div><div style="color:#22d3a5">● Online — Análise concluída</div></div>
+          </div>
+          <div style="color:#7c89ab">Encontrei 2 campanhas com frequência > 3. Recomendo trocar criativos.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Aba Dedicada por Agente</h3>
+      <p>Uma aba para cada agente na barra de navegação principal. Cada um tem sua própria "sala" com perfil, histórico e ações pendentes.</p>
+    </div>
+  </div>
+
+</div>
