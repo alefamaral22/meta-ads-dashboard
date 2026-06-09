@@ -1140,6 +1140,9 @@ function renderInsights(data) {
   const camps = (data.campaigns || []).sort((a, b) => parseFloat(b.spend || 0) - parseFloat(a.spend || 0));
   const daily = data.daily || [];
 
+  // Atualizar moeda com base na resposta do servidor (fonte mais confiável)
+  if (data.currency) setCurrency(data.currency);
+
   // Atualizar nome da conta ativa no topbar
   const activeAccountBtn = document.querySelector('[data-account].active');
   const accountName = activeAccountBtn?.textContent?.trim() || '';

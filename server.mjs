@@ -162,10 +162,11 @@ app.get('/api/insights', async (req, res) => {
       dateParam = `date_preset=${preset || 'maximum'}`;
     }
 
-    const [campIns, acctIns, trendIns] = await Promise.all([
+    const [campIns, acctIns, trendIns, acctInfo] = await Promise.all([
       metaGet(`${BASE}/act_${actId}/insights?fields=${INSIGHT_FIELDS}&${dateParam}&level=campaign&limit=200&access_token=${token}`),
       metaGet(`${BASE}/act_${actId}/insights?fields=${INSIGHT_FIELDS}&${dateParam}&level=account&access_token=${token}`),
       metaGet(`${BASE}/act_${actId}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach,date_start,date_stop&${dateParam}&level=account&time_increment=1&access_token=${token}`),
+      metaGet(`${BASE}/act_${actId}?fields=currency&access_token=${token}`),
     ]);
 
     // Surface Meta API errors clearly instead of silently returning empty data
@@ -178,6 +179,7 @@ app.get('/api/insights', async (req, res) => {
     res.json({
       period: since && until ? { since, until } : { preset: preset || 'maximum' },
       accountId: actId,
+      currency: acctInfo.currency || 'BRL',
       campaigns: campIns.data || [],
       account:   acctIns.data?.[0] || {},
       daily:     trendIns.data || [],
