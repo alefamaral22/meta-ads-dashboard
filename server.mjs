@@ -476,14 +476,16 @@ const AGENT_DEFS = {
   trace: {
     name: 'Trace', role: 'Analista de Tráfego Pago',
     prompt: (data, period) => `Você é Trace, analista sênior de tráfego pago da Meta Ads para a conta "Essence Atrativos". Analise APENAS as campanhas ATIVAS abaixo e retorne APENAS JSON válido:
-{"messages":[{"type":"text","text":"resumo em 2 frases com números reais do período"},{"type":"action","priority":"urgent|opportunity|suggestion","title":"título max 6 palavras","description":"contexto com números reais, max 2 frases","action_type":"pause_campaign|update_budget|info_only","action_payload":{"campaign_id":"id ou null","campaign_name":"nome"},"status":"pending"}]}
+{"messages":[{"type":"text","text":"resumo em 2 frases com números reais do período"},{"type":"action","priority":"urgent|opportunity|suggestion","title":"título max 6 palavras","description":"contexto com números reais, max 2 frases","action_type":"pause_campaign|update_budget|info_only","action_payload":{"campaign_id":"id real da campanha","campaign_name":"nome","new_budget":valor_em_centavos_inteiro},"status":"pending"}]}
 
 REGRAS CRÍTICAS — siga sempre:
 1. Campanhas em APRENDIZADO (gastos < R$150 no período OU criadas há menos de 7 dias): NÃO recomende pausar. Informe que estão aprendendo e precisam de mais tempo e dados
 2. Campanhas com BOM DESEMPENHO (ROAS>3 OU CTR>3% OU conversas/gasto baixo): diga EXPLICITAMENTE para NÃO mexer. "Campanha performando bem — mantenha como está"
 3. Campanhas SATURADAS (frequência>3): recomende novo criativo, NÃO pausar se ROAS for bom
 4. Pausar apenas: ROAS<1.5 E frequência>2 E gasto>R$80 E não está em aprendizado
-5. Escalar: ROAS>3.5 E frequência<2.5 — sugira aumentar orçamento 20%
+5. Escalar: ROAS>3.5 E frequência<2.5 — sugira aumentar orçamento 20%. Para update_budget, calcule new_budget = orçamento_diário_atual_em_centavos * 1.2 (arredonde para inteiro). Se não souber o orçamento exato, use 3000 (R$30,00 em centavos) como base
+
+IMPORTANTE: No action_payload do update_budget, sempre inclua "campaign_id" com o ID real da campanha dos dados e "new_budget" como inteiro em centavos (ex: R$12,00 = 1200).
 
 Período analisado: ${period}
 Dados (somente campanhas ativas com gasto no período): ${JSON.stringify(data)}
@@ -759,19 +761,62 @@ app.post('/api/agents/ada/create-campaign', async (req, res) => {
 app.post('/api/agents/:id/action', async (req, res) => {
   const { id } = req.params;
   const { message_index, confirmed } = req.body;
+  const token  = req.headers['x-meta-token'] || META_TOKEN;
+  const accId  = req.headers['x-acc-id']     || ACC_ID;
   const agents = loadAgentsData();
-  const agent = agents[id];
+  const agent  = agents[id];
   if (!agent || !agent.messages[message_index]) return res.status(404).json({ error: 'Ação não encontrada' });
 
   const msg = agent.messages[message_index];
   if (confirmed) {
     try {
       const p = msg.action_payload || {};
+
+      const metaPost = async (endpoint, params) => {
+        const r = await fetch(`${BASE}/${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ ...params, access_token: token }),
+        });
+        const result = await r.json();
+        if (result.error) throw new Error(result.error.message || JSON.stringify(result.error));
+        return result;
+      };
+
       if (msg.action_type === 'pause_campaign' && p.campaign_id) {
-        await fetch(`${BASE}/${p.campaign_id}?status=PAUSED&access_token=${META_TOKEN}`, { method: 'POST' });
-      } else if (msg.action_type === 'update_budget' && p.adset_id && p.new_budget) {
-        await fetch(`${BASE}/${p.adset_id}?daily_budget=${p.new_budget}&access_token=${META_TOKEN}`, { method: 'POST' });
+        await metaPost(p.campaign_id, { status: 'PAUSED' });
+
+      } else if (msg.action_type === 'update_budget') {
+        // Aceita adset_id direto ou resolve via campaign_id
+        let targetId  = p.adset_id;
+        let curBudget = p.current_budget ? parseInt(p.current_budget) : null;
+
+        if (!targetId && p.campaign_id) {
+          // Busca o primeiro conjunto de anúncios da campanha para obter ID e orçamento atual
+          const adsetsResp = await metaGet(
+            `${BASE}/act_${accId}/adsets?fields=id,daily_budget,lifetime_budget` +
+            `&filtering=${encodeURIComponent(JSON.stringify([{field:'campaign_id',operator:'EQUAL',value:p.campaign_id}]))}` +
+            `&limit=10&access_token=${token}`
+          );
+          const firstAdset = adsetsResp.data?.[0];
+          if (!firstAdset) throw new Error('Nenhum conjunto encontrado para esta campanha');
+          targetId  = firstAdset.id;
+          curBudget = curBudget || parseInt(firstAdset.daily_budget || firstAdset.lifetime_budget || 0);
+        }
+
+        if (!targetId) throw new Error('ID do conjunto de anúncios não encontrado');
+
+        // Usa new_budget do payload; se não tiver, aumenta 20% do orçamento atual
+        let newBudget = p.new_budget ? parseInt(p.new_budget) : null;
+        if (!newBudget && curBudget) newBudget = Math.round(curBudget * 1.2);
+        if (!newBudget) throw new Error('Orçamento atual não encontrado — informe new_budget no payload');
+
+        await metaPost(targetId, { daily_budget: String(newBudget) });
+
+      } else if (msg.action_type !== 'info_only' && msg.action_type !== 'download_report') {
+        // Tipo de ação desconhecido — marca como executado sem chamar API
       }
+
       msg.status = 'executed';
     } catch (e) {
       return res.status(500).json({ error: 'Falha ao executar na Meta API: ' + e.message });
