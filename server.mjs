@@ -476,16 +476,16 @@ const AGENT_DEFS = {
   trace: {
     name: 'Trace', role: 'Analista de Tráfego Pago',
     prompt: (data, period) => `Você é Trace, analista sênior de tráfego pago da Meta Ads para a conta "Essence Atrativos". Analise APENAS as campanhas ATIVAS abaixo e retorne APENAS JSON válido:
-{"messages":[{"type":"text","text":"resumo em 2 frases com números reais do período"},{"type":"action","priority":"urgent|opportunity|suggestion","title":"título max 6 palavras","description":"contexto com números reais, max 2 frases","action_type":"pause_campaign|update_budget|info_only","action_payload":{"campaign_id":"id real da campanha","campaign_name":"nome","new_budget":valor_em_centavos_inteiro},"status":"pending"}]}
+{"messages":[{"type":"text","text":"resumo em 2 frases com números reais do período"},{"type":"action","priority":"urgent|opportunity|suggestion","title":"título max 6 palavras","description":"contexto com números reais, max 2 frases","action_type":"pause_campaign|update_budget|info_only","action_payload":{"campaign_id":"id real da campanha","campaign_name":"nome","increase_pct":20},"status":"pending"}]}
 
 REGRAS CRÍTICAS — siga sempre:
 1. Campanhas em APRENDIZADO (gastos < R$150 no período OU criadas há menos de 7 dias): NÃO recomende pausar. Informe que estão aprendendo e precisam de mais tempo e dados
 2. Campanhas com BOM DESEMPENHO (ROAS>3 OU CTR>3% OU conversas/gasto baixo): diga EXPLICITAMENTE para NÃO mexer. "Campanha performando bem — mantenha como está"
 3. Campanhas SATURADAS (frequência>3): recomende novo criativo, NÃO pausar se ROAS for bom
 4. Pausar apenas: ROAS<1.5 E frequência>2 E gasto>R$80 E não está em aprendizado
-5. Escalar: ROAS>3.5 E frequência<2.5 — sugira aumentar orçamento 20%. Para update_budget, calcule new_budget = orçamento_diário_atual_em_centavos * 1.2 (arredonde para inteiro). Se não souber o orçamento exato, use 3000 (R$30,00 em centavos) como base
+5. Escalar: ROAS>3.5 E frequência<2.5 — sugira increase_pct:20
 
-IMPORTANTE: No action_payload do update_budget, sempre inclua "campaign_id" com o ID real da campanha dos dados e "new_budget" como inteiro em centavos (ex: R$12,00 = 1200).
+IMPORTANTE: No action_payload do update_budget, inclua "campaign_id" com o ID real da campanha dos dados e "increase_pct" com o percentual inteiro (ex: 20 para +20%). NUNCA inclua "new_budget" — o servidor calcula o valor real.
 
 Período analisado: ${period}
 Dados (somente campanhas ativas com gasto no período): ${JSON.stringify(data)}
@@ -494,14 +494,15 @@ Gere 1-2 textos e 1-3 ações. Responda APENAS o JSON.`,
   buck: {
     name: 'Buck', role: 'Otimizador de Orçamento',
     prompt: (data, period) => `Você é Buck, especialista em otimização de orçamento Meta Ads para "Essence Atrativos". Retorne APENAS JSON:
-{"messages":[{"type":"text","text":"análise de distribuição de orçamento em 2 frases com R$ reais"},{"type":"action","priority":"urgent|opportunity|suggestion","title":"título max 6 palavras","description":"justificativa com números, max 2 frases","action_type":"update_budget|pause_campaign|info_only","action_payload":{"adset_id":"id ou null","adset_name":"nome","new_budget":valor_em_centavos},"status":"pending"}]}
+{"messages":[{"type":"text","text":"análise de distribuição de orçamento em 2 frases com R$ reais"},{"type":"action","priority":"urgent|opportunity|suggestion","title":"título max 6 palavras","description":"justificativa com números, max 2 frases","action_type":"update_budget|pause_campaign|info_only","action_payload":{"campaign_id":"id real da campanha","campaign_name":"nome","increase_pct":20},"status":"pending"}]}
 
 REGRAS:
 1. Campanhas em aprendizado (gasto < R$150 no período): NÃO mexa no orçamento — deixe estabilizar
-2. Campanhas com ROAS>3: sugira aumentar orçamento 20-30%
-3. Campanhas com ROAS<1.5 e gasto>R$80: sugira reduzir orçamento ou pausar
+2. Campanhas com ROAS>3: sugira aumentar orçamento 20-30% (use increase_pct:20 ou increase_pct:30)
+3. Campanhas com ROAS<1.5 e gasto>R$80: sugira reduzir orçamento (use increase_pct:-20) ou pausar
 4. Redistribua verba de campanhas ruins para as que estão convertendo
 5. Nunca sugira cortar verba de campanha que está gerando conversas/leads a bom custo
+IMPORTANTE: No action_payload use "campaign_id" com o ID real e "increase_pct" como número inteiro (positivo para aumentar, negativo para reduzir). NUNCA use "new_budget".
 
 Período: ${period}. Dados: ${JSON.stringify(data)}
 Gere 1-2 textos e 1-3 ações. Responda APENAS o JSON.`,
@@ -787,40 +788,49 @@ app.post('/api/agents/:id/action', async (req, res) => {
         await metaPost(p.campaign_id, { status: 'PAUSED' });
 
       } else if (msg.action_type === 'update_budget') {
-        // Aceita adset_id direto ou resolve via campaign_id
+        // SEMPRE busca o orçamento atual da Meta API — nunca confia no valor do payload da IA
         let targetId  = p.adset_id;
-        let curBudget = p.current_budget ? parseInt(p.current_budget) : null;
+        let curBudget = null;  // será preenchido pela API, não pelo payload da IA
 
-        if (!targetId && p.campaign_id) {
-          // Busca adsets direto pelo endpoint da campanha (mais confiável que filtering)
+        const campaignId = p.campaign_id;
+        if (!campaignId && !targetId) throw new Error('campaign_id ou adset_id não encontrado no payload da ação');
+
+        if (targetId) {
+          // Adset_id já conhecido — busca orçamento atual
+          const adsetResp = await metaGet(`${BASE}/${targetId}?fields=daily_budget,lifetime_budget&access_token=${token}`);
+          curBudget = parseInt(adsetResp.daily_budget || adsetResp.lifetime_budget || 0);
+        } else {
+          // Resolve campaign_id → adset/campanha com orçamento
           const adsetsResp = await metaGet(
-            `${BASE}/${p.campaign_id}/adsets?fields=id,daily_budget,lifetime_budget&access_token=${token}`
+            `${BASE}/${campaignId}/adsets?fields=id,daily_budget,lifetime_budget&access_token=${token}`
           );
           const firstAdset = adsetsResp.data?.[0];
           if (firstAdset && (firstAdset.daily_budget || firstAdset.lifetime_budget)) {
-            // Orçamento no conjunto (padrão)
             targetId  = firstAdset.id;
-            curBudget = curBudget || parseInt(firstAdset.daily_budget || firstAdset.lifetime_budget || 0);
+            curBudget = parseInt(firstAdset.daily_budget || firstAdset.lifetime_budget || 0);
           } else {
-            // CBO: orçamento está na campanha, não no conjunto
+            // CBO: orçamento na campanha
             const campResp = await metaGet(
-              `${BASE}/${p.campaign_id}?fields=daily_budget,lifetime_budget&access_token=${token}`
+              `${BASE}/${campaignId}?fields=daily_budget,lifetime_budget&access_token=${token}`
             );
             if (campResp.daily_budget || campResp.lifetime_budget) {
-              targetId  = p.campaign_id;
-              curBudget = curBudget || parseInt(campResp.daily_budget || campResp.lifetime_budget || 0);
+              targetId  = campaignId;
+              curBudget = parseInt(campResp.daily_budget || campResp.lifetime_budget || 0);
             } else {
-              throw new Error('Orçamento não encontrado nem no conjunto nem na campanha. Verifique se a campanha está ativa.');
+              throw new Error('Orçamento não encontrado na campanha nem no conjunto. Verifique se a campanha está ativa.');
             }
           }
         }
 
-        if (!targetId) throw new Error('ID do conjunto de anúncios não encontrado');
+        if (!curBudget || curBudget <= 0) throw new Error(`Orçamento atual inválido (${curBudget}). Verifique se a campanha tem orçamento diário configurado.`);
 
-        // Usa new_budget do payload; se não tiver, aumenta 20% do orçamento atual
-        let newBudget = p.new_budget ? parseInt(p.new_budget) : null;
-        if (!newBudget && curBudget) newBudget = Math.round(curBudget * 1.2);
-        if (!newBudget) throw new Error('Orçamento atual não encontrado — informe new_budget no payload');
+        // Calcula novo orçamento: usa increase_pct do payload (padrão 20%)
+        const pct = parseFloat(p.increase_pct || 20) / 100;
+        const newBudget = Math.round(curBudget * (1 + pct));
+        const curDisplay = (curBudget / 100).toFixed(2);
+        const newDisplay = (newBudget / 100).toFixed(2);
+        console.log(`[ACTION] update_budget: ${targetId} ${curDisplay} → ${newDisplay} (+${p.increase_pct || 20}%)`);
+
 
         await metaPost(targetId, { daily_budget: String(newBudget) });
 
