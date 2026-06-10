@@ -6,6 +6,31 @@ import crypto from 'crypto';
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
+// Parser JSON robusto — corrige quebras de linha reais dentro de strings e chaves sem aspas
+function robustJsonParse(raw) {
+  let str = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+  // tentativa direta
+  try { return JSON.parse(str); } catch {}
+  // corrigir quebras de linha reais dentro de strings JSON (caracter por caracter)
+  let fixed = ''; let inStr = false; let esc = false;
+  for (let i = 0; i < str.length; i++) {
+    const c = str[i];
+    if (esc)            { fixed += c; esc = false; }
+    else if (c === '\\') { fixed += c; esc = true; }
+    else if (c === '"')  { fixed += c; inStr = !inStr; }
+    else if (inStr && c === '\n') { fixed += '\\n'; }
+    else if (inStr && c === '\r') { fixed += '\\r'; }
+    else if (inStr && c === '\t') { fixed += '\\t'; }
+    else { fixed += c; }
+  }
+  try { return JSON.parse(fixed); } catch {}
+  // corrigir chaves sem aspas duplas (ex: {priority: "x"} → {"priority": "x"})
+  const fixed2 = fixed.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+  try { return JSON.parse(fixed2); } catch (e) {
+    throw new Error('JSON inválido da IA: ' + e.message);
+  }
+}
+
 // Carregar .env se existir
 const __dirnameEarly = dirname(fileURLToPath(import.meta.url));
 const envPath = join(__dirnameEarly, '.env');
@@ -631,7 +656,7 @@ Retorne APENAS JSON:
 ]}
 
 Período: ${period}. Dados (campanhas + criativos reais quando disponíveis): ${JSON.stringify(data)}
-Gere 2 textos e 1-2 ações. Responda APENAS o JSON.`,
+Gere 2 textos e 1-2 ações. Responda APENAS JSON válido — todas as chaves com aspas duplas.`,
   },
   rex: {
     name: 'Rex', role: 'Gerador de Relatórios',
@@ -668,7 +693,8 @@ Retorne APENAS JSON:
   {"type":"action","priority":"suggestion","title":"Criar campanha Segmento B","description":"Campanha pausada para Mulheres 35-55 — teste de segmento etário","action_type":"create_campaign","action_payload":{"campaign_name":"[produto real] — Segmento B 35-55","objective":"OUTCOME_LEADS","daily_budget_brl":30,"copy_headline":"[headline segmento B]","copy_body":"[texto segmento B completo]","cta_type":"SEND_MESSAGE","base_campaign_id":"[mesmo id]"},"status":"pending"}
 ]}
 Período: ${period}. Dados reais das campanhas ativas (incluindo criativos quando disponíveis): ${JSON.stringify(data)}
-Responda APENAS o JSON. NÃO use placeholders — escreva tudo completo e pronto para publicar.`,
+Responda APENAS o JSON. NÃO use placeholders — escreva tudo completo e pronto para publicar.
+CRÍTICO: No action_payload de cada ação, o copy_headline deve ser a MESMA headline que você escreveu no texto "COPY SEGMENTO A" ou "COPY SEGMENTO B" logo acima. O copy_body deve ser o MESMO texto do anúncio que você escreveu. Não repita o exemplo — escreva o conteúdo real.`,
   },
   cleo: {
     name: 'Cleo', role: 'Diretora de Criativos',
@@ -711,7 +737,8 @@ Retorne APENAS JSON:
   {"type":"action","priority":"suggestion","title":"Briefs de vídeo prontos","description":"2 briefs com 3 durações (7s/15s/30s) e timecodes CapCut — prontos para gravar","action_type":"info_only","action_payload":{},"status":"pending"}
 ]}
 Período: ${period}. Dados das campanhas ativas (incluindo criativos quando disponíveis): ${JSON.stringify(data)}
-Responda APENAS o JSON. Escreva os roteiros completos, palavra por palavra, prontos para gravar.`,
+Responda APENAS o JSON. Escreva os roteiros completos, palavra por palavra, prontos para gravar.
+CRÍTICO DE FORMATAÇÃO: dentro das strings JSON use \\n para quebra de linha — NUNCA quebre a linha diretamente dentro de uma string JSON, pois isso invalida o JSON.`,
   },
 };
 
@@ -876,7 +903,7 @@ async function runAgentAnalysis(agentId, apiKey, period, accountId, metaToken) {
 
     const def = AGENT_DEFS[agentId];
     // Ada, Cleo e Rex geram conteúdo longo — precisam de mais tokens
-    const maxTokens = ['ada', 'cleo', 'rex'].includes(agentId) ? 2400 : 1800;
+    const maxTokens = agentId === 'cleo' ? 4000 : ['ada', 'rex'].includes(agentId) ? 2800 : 1800;
     const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
@@ -885,9 +912,8 @@ async function runAgentAnalysis(agentId, apiKey, period, accountId, metaToken) {
 
     if (!aiResp.ok) throw new Error(`Anthropic ${aiResp.status}`);
     const aiResult = await aiResp.json();
-    let rawText = (aiResult.content?.[0]?.text || '').trim();
-    if (!rawText.startsWith('{')) rawText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-    const parsed = JSON.parse(rawText);
+    const rawText = (aiResult.content?.[0]?.text || '').trim();
+    const parsed = robustJsonParse(rawText);
 
     agents[agentId] = {
       status: 'ready',
