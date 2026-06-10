@@ -1251,42 +1251,111 @@ async function createCampaign(agentId, msgIdx) {
 /* ═══════════════════════════════════════════════════
    REX — DOWNLOAD RELATÓRIO
 ═══════════════════════════════════════════════════ */
-function downloadRexReport() {
+async function downloadRexReport() {
   const data = agentsData['rex'];
-  if (!data || !data.messages) return;
+  if (!data) return;
 
-  const period = data.period || 'Período não informado';
-  const date   = data.generated_at ? new Date(data.generated_at).toLocaleString('pt-BR') : '';
-  const msgs   = data.messages.filter(m => m.type === 'text').map(m => m.text).join('\n\n');
+  const period = data.period || 'Período';
+  const date = data.generated_at ? new Date(data.generated_at).toLocaleString('pt-BR') : '';
+  const rawData = data.raw_data || {};
+
+  // Dados para os gráficos
+  const dailyData = rawData.daily_data || [];
+  const prevAccount = rawData.account_prev || {};
+  const currAccount = rawData.account || {};
+
+  const dailyLabels = dailyData.map(d => d.date_start || '').slice(-30);
+  const dailySpend  = dailyData.map(d => parseFloat(d.spend || 0)).slice(-30);
+  const dailyCTR    = dailyData.map(d => parseFloat(d.ctr || 0)).slice(-30);
+
+  const campaigns = rawData.campaigns || [];
+  const campNames  = campaigns.map(c => c.campaign_name?.slice(0,20) || '').slice(0,8);
+  const campSpend  = campaigns.map(c => parseFloat(c.spend || 0)).slice(0,8);
+  const campCTR    = campaigns.map(c => parseFloat(c.ctr || 0)).slice(0,8);
+
+  const kpiCards = [
+    { label: 'Gasto Total', val: 'R$ ' + parseFloat(currAccount.spend||0).toFixed(2), prev: parseFloat(prevAccount.spend||0), curr: parseFloat(currAccount.spend||0) },
+    { label: 'Impressões', val: parseInt(currAccount.impressions||0).toLocaleString('pt-BR'), prev: parseFloat(prevAccount.impressions||0), curr: parseFloat(currAccount.impressions||0) },
+    { label: 'CTR Médio', val: parseFloat(currAccount.ctr||0).toFixed(2) + '%', prev: parseFloat(prevAccount.ctr||0), curr: parseFloat(currAccount.ctr||0) },
+    { label: 'CPC Médio', val: 'R$ ' + parseFloat(currAccount.cpc||0).toFixed(2), prev: parseFloat(prevAccount.cpc||0), curr: parseFloat(currAccount.cpc||0), lower_better: true },
+  ].map(k => {
+    const delta = k.prev > 0 ? ((k.curr - k.prev) / k.prev * 100).toFixed(1) : null;
+    const isPositive = k.lower_better ? (k.curr <= k.prev) : (k.curr >= k.prev);
+    const deltaHtml = delta !== null
+      ? `<div class="kpi-delta ${isPositive ? 'up' : 'down'}">${isPositive ? '▲' : '▼'} ${Math.abs(delta)}% vs período anterior</div>`
+      : '';
+    return `<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.val}</div>${deltaHtml}</div>`;
+  }).join('');
+
+  const chartScriptsDaily = dailyLabels.length > 1 ? `
+new Chart(document.getElementById('chartSpend'), { type:'bar', data:{ labels:${JSON.stringify(dailyLabels)}, datasets:[{ data:${JSON.stringify(dailySpend)}, backgroundColor:'rgba(88,166,255,.7)', borderRadius:4 }]}, options:chartDefaults });
+new Chart(document.getElementById('chartCTR'),   { type:'line', data:{ labels:${JSON.stringify(dailyLabels)}, datasets:[{ data:${JSON.stringify(dailyCTR)}, borderColor:'#3fb950', backgroundColor:'rgba(63,185,80,.1)', fill:true, tension:.3, pointRadius:3 }]}, options:chartDefaults });
+` : '';
+
+  const chartScriptsCamp = campNames.length > 0 ? `
+new Chart(document.getElementById('chartCamp'),    { type:'bar', data:{ labels:${JSON.stringify(campNames)}, datasets:[{ data:${JSON.stringify(campSpend)}, backgroundColor:'rgba(88,166,255,.7)', borderRadius:4 }]}, options:{...chartDefaults, indexAxis:'y'} });
+new Chart(document.getElementById('chartCampCTR'), { type:'bar', data:{ labels:${JSON.stringify(campNames)}, datasets:[{ data:${JSON.stringify(campCTR)}, backgroundColor:'rgba(63,185,80,.7)', borderRadius:4 }]}, options:{...chartDefaults, indexAxis:'y'} });
+` : '';
+
+  const gridCharts = (dailyLabels.length > 1 || campNames.length > 0) ? `
+<div class="grid">
+  ${dailyLabels.length > 1 ? '<div class="card"><h3>Gasto Diário (R$)</h3><canvas id="chartSpend"></canvas></div><div class="card"><h3>CTR Diário (%)</h3><canvas id="chartCTR"></canvas></div>' : ''}
+  ${campNames.length > 0 ? '<div class="card"><h3>Gasto por Campanha (R$)</h3><canvas id="chartCamp"></canvas></div><div class="card"><h3>CTR por Campanha (%)</h3><canvas id="chartCampCTR"></canvas></div>' : ''}
+</div>` : '';
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8"/>
-<title>Relatório Meta Ads — Essence Atrativos</title>
+<meta charset="UTF-8">
+<title>Relatório Meta Ads</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"><\/script>
 <style>
-  body{font-family:'Segoe UI',sans-serif;max-width:800px;margin:40px auto;padding:0 24px;color:#1a1a2e;line-height:1.7}
-  h1{font-size:1.6rem;font-weight:800;color:#1a1a2e;margin-bottom:4px}
-  .meta{font-size:.85rem;color:#666;margin-bottom:32px;padding-bottom:16px;border-bottom:2px solid #eee}
-  .section{background:#f8f9ff;border-left:4px solid #4f6ef7;border-radius:0 10px 10px 0;padding:16px 20px;margin-bottom:20px;white-space:pre-wrap;font-size:.9rem}
-  .footer{margin-top:40px;font-size:.75rem;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:16px}
-</style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; padding: 24px; }
+  h1 { font-size: 1.4rem; margin-bottom: 4px; color: #fff; }
+  .meta { font-size: .8rem; color: #8b949e; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; }
+  .card h3 { font-size: .9rem; color: #8b949e; margin-bottom: 16px; text-transform: uppercase; letter-spacing: .05em; }
+  .kpi-row { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .kpi { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 14px 18px; flex: 1; min-width: 120px; }
+  .kpi-label { font-size: .72rem; color: #8b949e; margin-bottom: 4px; }
+  .kpi-value { font-size: 1.4rem; font-weight: 700; color: #58a6ff; }
+  .kpi-delta { font-size: .72rem; margin-top: 2px; }
+  .kpi-delta.up { color: #3fb950; } .kpi-delta.down { color: #f85149; }
+  .section { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; margin-bottom: 16px; line-height: 1.7; white-space: pre-wrap; font-size: .88rem; }
+  canvas { max-height: 260px; }
+  .footer { text-align: center; font-size: .72rem; color: #8b949e; margin-top: 32px; }
+  @media print { body { background: #fff; color: #000; } .card,.section,.kpi { border-color: #ccc; background: #f8f8f8; } }
+<\/style>
 </head>
 <body>
-<h1>📊 Relatório Meta Ads — Essence Atrativos</h1>
-<div class="meta">Período: <strong>${period}</strong> &nbsp;|&nbsp; Gerado em: ${date} &nbsp;|&nbsp; Agente: Rex</div>
+<h1>📊 Relatório Meta Ads — ${period}</h1>
+<div class="meta">Gerado em: ${date} &nbsp;|&nbsp; Agente: Rex</div>
+<div class="kpi-row">${kpiCards}</div>
 ${data.messages.filter(m=>m.type==='text').map(m=>`<div class="section">${m.text}</div>`).join('')}
-<div class="footer">Gerado automaticamente pelo Time de Agentes IA · Meta Ads Dashboard · Essence Atrativos</div>
-</body>
-</html>`;
+${gridCharts}
+<div class="footer">Gerado pelo Time de Agentes IA · Meta Ads Dashboard · Essence Atrativos</div>
+<script>
+const chartDefaults = {
+  responsive: true,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } },
+    y: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } }
+  }
+};
+${chartScriptsDaily}${chartScriptsCamp}
+<\/script>
+</body></html>`;
 
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const a    = document.createElement('a');
-  a.href     = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
   a.download = `relatorio-meta-${period}-${new Date().toISOString().slice(0,10)}.html`;
   a.click();
   URL.revokeObjectURL(a.href);
-  toast('Relatório baixado!', true);
+  toast('📥 Relatório com gráficos baixado!', true);
 }
 
 /* ═══════════════════════════════════════════════════

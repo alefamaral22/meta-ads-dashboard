@@ -33,6 +33,59 @@ const salesFile  = join(dataDir, 'sales_log.json');
 const rawFile    = join(dataDir, 'meta_raw.json');
 const statusFile = join(dataDir, 'refresh_status.json');
 const recsFile   = join(dataDir, 'recs.json');
+const memoryFile = join(dataDir, 'agents_memory.json');
+
+// ── SISTEMA DE MEMÓRIA (180 dias) ─────────────────────────────────────────────
+function loadMemory() {
+  if (existsSync(memoryFile)) {
+    try { return JSON.parse(readFileSync(memoryFile, 'utf8')); } catch { /* fall */ }
+  }
+  return { analyses: [], decisions: [], champions: [] };
+}
+
+function saveMemory(mem) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 180);
+  const cut = (arr) => arr.filter(e => new Date(e.ts) >= cutoff);
+  mem.analyses  = cut(mem.analyses).slice(-500);
+  mem.decisions = cut(mem.decisions).slice(-1000);
+  mem.champions = cut(mem.champions).slice(-50);
+  writeFileSync(memoryFile, JSON.stringify(mem, null, 2));
+}
+
+function getDecisionHistory(accountId, days = 30) {
+  const mem = loadMemory();
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return mem.decisions
+    .filter(d => d.account === accountId && new Date(d.ts) >= cutoff)
+    .slice(-20);
+}
+
+function getPreviousAnalyses(agentId, accountId, count = 5) {
+  const mem = loadMemory();
+  return mem.analyses
+    .filter(a => a.agent === agentId && a.account === accountId)
+    .slice(-count);
+}
+
+function buildPrevPeriodParam(periodLabel, since, until) {
+  // se tem since/until customizado:
+  if (since && until) {
+    const s = new Date(since), u = new Date(until);
+    const days = Math.round((u - s) / 86400000) + 1;
+    const ps = new Date(s); ps.setDate(ps.getDate() - days);
+    const pu = new Date(u); pu.setDate(pu.getDate() - days);
+    return `time_range=${encodeURIComponent(JSON.stringify({ since: ps.toISOString().slice(0,10), until: pu.toISOString().slice(0,10) }))}`;
+  }
+  // presets comuns
+  const daysMap = { last_7d:7, last_14d:14, last_30d:30, last_90d:90, today:1, yesterday:1, this_month:null };
+  if (periodLabel === 'this_month') return 'date_preset=last_month';
+  const days = daysMap[periodLabel] || 7;
+  const pu = new Date(); pu.setDate(pu.getDate() - days - 1);
+  const ps = new Date(pu); ps.setDate(ps.getDate() - days + 1);
+  return `time_range=${encodeURIComponent(JSON.stringify({ since: ps.toISOString().slice(0,10), until: pu.toISOString().slice(0,10) }))}`;
+}
 
 // ── estado de refresh ─────────────────────────────────────────────────────────
 let refreshStatus = existsSync(statusFile)
@@ -487,6 +540,28 @@ REGRAS CRÍTICAS — siga sempre:
 
 IMPORTANTE: No action_payload do update_budget, inclua "campaign_id" com o ID real da campanha dos dados e "increase_pct" com o percentual inteiro (ex: 20 para +20%). NUNCA inclua "new_budget" — o servidor calcula o valor real.
 
+${data.account_prev && data.account_prev.spend ? `COMPARAÇÃO COM PERÍODO ANTERIOR:
+Período atual vs anterior — variações: gasto atual R$${parseFloat(data.account?.spend||0).toFixed(2)} vs R$${parseFloat(data.account_prev?.spend||0).toFixed(2)}, CTR ${parseFloat(data.account?.ctr||0).toFixed(2)}% vs ${parseFloat(data.account_prev?.ctr||0).toFixed(2)}%, CPC R$${parseFloat(data.account?.cpc||0).toFixed(2)} vs R$${parseFloat(data.account_prev?.cpc||0).toFixed(2)}.
+Se alguma métrica variou > 30% entre períodos, isso é uma anomalia a destacar com URGÊNCIA.` : ''}
+
+${data.daily_trend && data.daily_trend.length >= 2 ? `ALERTAS DE ANOMALIA (últimos ${data.daily_trend.length} dias):
+${(() => {
+  const days = data.daily_trend;
+  const lastDay = days[days.length - 1];
+  const prevDays = days.slice(0, -1);
+  const avgCPC = prevDays.reduce((s, d) => s + parseFloat(d.cpc||0), 0) / (prevDays.length || 1);
+  const avgCTR = prevDays.reduce((s, d) => s + parseFloat(d.ctr||0), 0) / (prevDays.length || 1);
+  const alerts = [];
+  if (parseFloat(lastDay.cpc||0) > avgCPC * 2) alerts.push('CPC do último dia (' + parseFloat(lastDay.cpc).toFixed(2) + ') está acima do dobro da média (' + avgCPC.toFixed(2) + ') — URGENTE');
+  if (parseFloat(lastDay.ctr||0) < avgCTR * 0.6) alerts.push('CTR do último dia (' + parseFloat(lastDay.ctr).toFixed(2) + '%) está abaixo de 60% da média (' + avgCTR.toFixed(2) + '%) — URGENTE');
+  if (parseFloat(lastDay.spend||0) === 0) alerts.push('Gasto do último dia = R$0 — campanha pode ter parado');
+  return alerts.length ? alerts.join('\\n') : 'Nenhuma anomalia detectada nos últimos dias.';
+})()}` : ''}
+
+${data.decision_history && data.decision_history.length > 0 ? `HISTÓRICO DE DECISÕES (últimos 45 dias):
+${JSON.stringify(data.decision_history.slice(-5))}
+Para cada decisão executada, verifique se as métricas atuais melhoraram ou pioraram em relação ao período da decisão.` : ''}
+
 Período analisado: ${period}
 Dados (somente campanhas ativas com gasto no período): ${JSON.stringify(data)}
 Gere 1-2 textos e 1-3 ações. Responda APENAS o JSON.`,
@@ -504,6 +579,16 @@ REGRAS:
 5. Nunca sugira cortar verba de campanha que está gerando conversas/leads a bom custo
 IMPORTANTE: No action_payload use "campaign_id" com o ID real e "increase_pct" como número inteiro (positivo para aumentar, negativo para reduzir). NUNCA use "new_budget".
 
+REDISTRIBUIÇÃO: quando sugerir reduzir ou pausar uma campanha ruim, SEMPRE gere também uma segunda ação de update_budget para a melhor campanha (increase_pct positivo) para aproveitar o orçamento liberado.
+
+${data.month_spend_info && data.month_spend_info.mtd_spend !== undefined ? `RITMO DE GASTO MENSAL:
+- Dias passados no mês: ${data.month_spend_info.days_passed}/${data.month_spend_info.days_in_month}
+- Gasto MTD: R$${parseFloat(data.month_spend_info.mtd_spend).toFixed(2)}
+- Taxa diária média: R$${data.month_spend_info.daily_rate}/dia
+- Projeção para fim do mês: R$${data.month_spend_info.projected_spend}
+Se a projeção indicar extrapolação do orçamento esperado: marque como URGENTE. Se vai sobrar muito: sugira aumentar orçamento das campanhas melhores.
+META REVERSA: com base no custo por conversa atual, calcule quanto orçamento seria necessário para atingir 300, 500 e 1000 conversas no mês.` : ''}
+
 Período: ${period}. Dados: ${JSON.stringify(data)}
 Gere 1-2 textos e 1-3 ações. Responda APENAS o JSON.`,
   },
@@ -512,45 +597,63 @@ Gere 1-2 textos e 1-3 ações. Responda APENAS o JSON.`,
     prompt: (data, period) => `Você é Cris, especialista em criativos Meta Ads para "Essence Atrativos". Retorne APENAS JSON:
 {"messages":[{"type":"text","text":"análise de desempenho dos criativos em 2 frases com CTR e frequência reais"},{"type":"action","priority":"urgent|opportunity|suggestion","title":"título max 6 palavras","description":"contexto com métricas, max 2 frases","action_type":"pause_campaign|info_only","action_payload":{"campaign_name":"nome"},"status":"pending"}]}
 
+COMO IDENTIFICAR O CAMPEÃO (siga esta ordem):
+1. Descarte campanhas com gasto < R$15 no período
+2. Entre as que restam, calcule: score = conversas_iniciadas / spend
+3. Se nenhuma tiver conversas, use: maior CTR entre campanhas com gasto > R$15
+4. EMPATE: desempata por menor CPC
+
 REGRAS:
-1. Criativo CAMPEÃO (maior CTR): destaque e diga para manter e replicar o estilo
+1. Criativo CAMPEÃO: destaque, explique por que vence com números reais, diga para manter e replicar o estilo
 2. Frequência>3.5: criativo saturado — sugira novo criativo, não necessariamente pausar
 3. CTR<0.8%: criativo fraco — sugira revisar imagem e texto
-4. Campanhas em aprendizado (gasto baixo): não critique o CTR ainda — precisam de mais dados
-5. Identifique padrões: o que os melhores criativos têm em comum (formato, linguagem, oferta)
+4. Campanhas em aprendizado (gasto baixo): não critique o CTR ainda
 
-Período: ${period}. Dados: ${JSON.stringify(data)}
-Gere 1-2 textos e 1-2 ações. Responda APENAS o JSON.`,
+${data.champions_library && data.champions_library.length > 0 ? `BIBLIOTECA DE CAMPEÕES ANTERIORES (use para comparação):
+${JSON.stringify(data.champions_library.map(c => ({ name: c.campaign_name, ctr: c.ctr, cpc: c.cpc, spend: c.spend, ts: c.ts })))}
+Compare o desempenho atual com os campeões históricos para identificar tendências.` : ''}
+
+${data.placement_breakdown && data.placement_breakdown.length > 0 ? `ANÁLISE DE PLACEMENT (dados disponíveis):
+Identifique se Feed vs Reels vs Stories apresenta desempenho significativamente diferente nos dados acima.
+Se um placement tiver CTR > 2x outro, destaque isso como oportunidade de otimização.` : ''}
+
+Período: ${period}. Dados (campanhas + criativos reais quando disponíveis): ${JSON.stringify(data)}
+Gere 2 textos e 1-2 ações. Responda APENAS o JSON.`,
   },
   rex: {
     name: 'Rex', role: 'Gerador de Relatórios',
     prompt: (data, period) => `Você é Rex, especialista em relatórios executivos de tráfego pago para "Essence Atrativos". Retorne APENAS JSON:
 {"messages":[
-  {"type":"text","text":"RESUMO EXECUTIVO (3 frases): total gasto, total de conversas/leads, custo médio por conversa, comparação com benchmarks"},
+  {"type":"text","text":"RESUMO EXECUTIVO (3 frases): total gasto, total de conversas/leads, custo médio por conversa, comparação com período anterior se disponível"},
   {"type":"text","text":"DESTAQUES POSITIVOS: 2-3 campanhas que performaram bem com números reais"},
   {"type":"text","text":"PONTOS DE ATENÇÃO: 2-3 campanhas ou métricas que precisam de ação com números reais"},
-  {"type":"text","text":"RECOMENDAÇÃO GERAL: 1-2 ações prioritárias para o próximo período"},
-  {"type":"action","priority":"suggestion","title":"📊 Relatório ${period} gerado","description":"Clique em Baixar para exportar o relatório completo em PDF","action_type":"download_report","action_payload":{"period":"${period}","total_spend":"${data.account?.spend || 0}","total_campaigns":${(data.campaigns||[]).length}},"status":"pending"}
+  {"type":"text","text":"RECOMENDAÇÃO GERAL: 1-2 ações prioritárias para o próximo período. Compare período atual vs anterior: gasto atual R$${parseFloat(data.account?.spend||0).toFixed(2)} vs anterior R$${parseFloat(data.account_prev?.spend||0).toFixed(2)}, CTR atual ${parseFloat(data.account?.ctr||0).toFixed(2)}% vs anterior ${parseFloat(data.account_prev?.ctr||0).toFixed(2)}%"},
+  {"type":"action","priority":"suggestion","title":"📊 Relatório ${period} gerado","description":"Clique em Baixar para exportar o relatório completo com gráficos","action_type":"download_report","action_payload":{"period":"${period}","total_spend":"${data.account?.spend || 0}","total_campaigns":${(data.campaigns||[]).length}},"status":"pending"}
 ]}
-Período: ${period}. Dados completos: ${JSON.stringify(data)}
+Período: ${period}. Dados completos (incluindo daily_data para gráficos e account_prev para comparação): ${JSON.stringify(data)}
 Use números reais. Seja direto e executivo. Responda APENAS o JSON.`,
   },
   ada: {
     name: 'Ada', role: 'Criadora de Anúncios',
     prompt: (data, period) => `Você é Ada, especialista em copy para Meta Ads, trabalhando para "Essence Atrativos".
 
-MUITO IMPORTANTE: Analise os nomes REAIS das campanhas abaixo para entender os produtos/serviços anunciados. Crie copies BASEADAS nos produtos reais que aparecem nos nomes das campanhas. NÃO invente produtos que não existam nos dados.
+MUITO IMPORTANTE: Analise os nomes REAIS das campanhas abaixo para entender os produtos/serviços anunciados. Crie copies BASEADAS nos produtos reais. NÃO invente produtos que não existam nos dados.
+
+CRITÉRIO PARA ESCOLHER A BASE:
+- Use a campanha com MELHOR custo por conversa (menor spend/conversas) com gasto > R$15
+- Se não tiver conversas: use a de maior CTR com gasto > R$15
 
 Retorne APENAS JSON:
 {"messages":[
-  {"type":"text","text":"análise: quais produtos estão nas campanhas ativas, qual linguagem está gerando mais engajamento, CTAs que funcionam"},
-  {"type":"text","text":"COPY A — baseada na campanha com melhor performance:\\nHeadline: [headline impactante do produto real]\\nTexto: [copy completa 3-4 linhas]\\nCTA: Chame no WhatsApp"},
-  {"type":"action","priority":"opportunity","title":"Criar campanha com Copy A","description":"Campanha pausada pronta para adicionar criativo e publicar","action_type":"create_campaign","action_payload":{"campaign_name":"[nome baseado no produto real] — Copy A","objective":"OUTCOME_LEADS","daily_budget_brl":30,"copy_headline":"[headline]","copy_body":"[texto completo]","cta_type":"SEND_MESSAGE","base_campaign_id":"[id da campanha com melhor ROAS ou CTR]"},"status":"pending"},
-  {"type":"text","text":"COPY B — variação de ângulo diferente:\\nHeadline: [headline alternativa]\\nTexto: [copy variante]\\nCTA: Chame no WhatsApp"},
-  {"type":"action","priority":"suggestion","title":"Criar campanha com Copy B","description":"Variação para teste A/B — compare com Copy A","action_type":"create_campaign","action_payload":{"campaign_name":"[nome produto] — Copy B","objective":"OUTCOME_LEADS","daily_budget_brl":30,"copy_headline":"[headline B]","copy_body":"[texto B]","cta_type":"SEND_MESSAGE","base_campaign_id":"[mesmo id]"},"status":"pending"}
+  {"type":"text","text":"ANÁLISE (1 texto): qual campanha serviu de base, qual ângulo está funcionando e por quê — 2-3 frases com números reais"},
+  {"type":"text","text":"✍️ 5 VARIAÇÕES DE HEADLINE para o produto da campanha campeã:\\nHeadline 1 (benefício direto): [headline]\\nHeadline 2 (curiosidade/pergunta): [headline]\\nHeadline 3 (prova social): [headline]\\nHeadline 4 (urgência/oferta): [headline]\\nHeadline 5 (dor/problema): [headline]"},
+  {"type":"text","text":"✍️ COPY SEGMENTO A — Mulheres 25-35 (tom: moderno, prático, resultado rápido)\\n\\nHeadline: [headline para esse segmento]\\nTexto: [copy completa 3-4 frases, linguagem moderna e direta]\\nCTA: Chame no WhatsApp"},
+  {"type":"action","priority":"opportunity","title":"Criar campanha Segmento A","description":"Campanha pausada para Mulheres 25-35 pronta para adicionar criativo","action_type":"create_campaign","action_payload":{"campaign_name":"[produto real] — Segmento A 25-35","objective":"OUTCOME_LEADS","daily_budget_brl":30,"copy_headline":"[headline segmento A]","copy_body":"[texto segmento A completo]","cta_type":"SEND_MESSAGE","base_campaign_id":"[id da campanha com melhor ROAS ou CTR]"},"status":"pending"},
+  {"type":"text","text":"✍️ COPY SEGMENTO B — Mulheres 35-55 (tom: confiança, experiência, qualidade)\\n\\nHeadline: [headline para esse segmento]\\nTexto: [copy completa 3-4 frases, linguagem que transmite autoridade e confiança]\\nCTA: Chame no WhatsApp"},
+  {"type":"action","priority":"suggestion","title":"Criar campanha Segmento B","description":"Campanha pausada para Mulheres 35-55 — teste de segmento etário","action_type":"create_campaign","action_payload":{"campaign_name":"[produto real] — Segmento B 35-55","objective":"OUTCOME_LEADS","daily_budget_brl":30,"copy_headline":"[headline segmento B]","copy_body":"[texto segmento B completo]","cta_type":"SEND_MESSAGE","base_campaign_id":"[mesmo id]"},"status":"pending"}
 ]}
-Período: ${period}. Dados reais das campanhas ativas: ${JSON.stringify(data)}
-Responda APENAS o JSON.`,
+Período: ${period}. Dados reais das campanhas ativas (incluindo criativos quando disponíveis): ${JSON.stringify(data)}
+Responda APENAS o JSON. NÃO use placeholders — escreva tudo completo e pronto para publicar.`,
   },
   cleo: {
     name: 'Cleo', role: 'Diretora de Criativos',
@@ -558,14 +661,24 @@ Responda APENAS o JSON.`,
 
 MUITO IMPORTANTE: Analise os nomes REAIS das campanhas para identificar os produtos anunciados. Crie briefs de vídeo BASEADOS nesses produtos reais. NÃO invente produtos.
 
+Use a campanha com melhor custo por conversa (ou maior CTR se não tiver conversas, gasto > R$15) como referência.
+
+Para cada brief, gere 3 versões com timecodes no formato CapCut (HH:MM:SS:FF — 24fps):
+BUMPER (7s): [00:00:00:00] → [00:00:07:00]
+REELS (15s): [00:00:00:00] → [00:00:15:00]
+FEED (30s): [00:00:00:00] → [00:00:30:00]
+
+Cada cena: [timecode entrada] [timecode saída] | TELA: ... | FALA: "..."
+
 Retorne APENAS JSON:
 {"messages":[
-  {"type":"text","text":"análise: quais produtos aparecem nas campanhas, qual público está respondendo melhor (baseado em CTR e conversas), qual formato/tom funciona"},
-  {"type":"text","text":"BRIEF DO VÍDEO — [nome do produto real da campanha com melhor performance]:\\n\\n⏱️ 0-3s GANCHO: [frase de impacto específica para o produto]\\n⏱️ 3-15s DESENVOLVIMENTO: [demonstração/benefício do produto real]\\n⏱️ 15-30s CTA: [chamada para WhatsApp]\\n\\n📝 ROTEIRO COMPLETO:\\n[roteiro palavra a palavra baseado no produto e nos dados das campanhas]\\n\\n🎬 DICAS DE GRAVAÇÃO: [instruções específicas para esse produto]"},
-  {"type":"action","priority":"suggestion","title":"Brief de vídeo pronto","description":"Roteiro completo baseado nas campanhas com melhor CTR","action_type":"info_only","action_payload":{},"status":"pending"}
+  {"type":"text","text":"análise: quais produtos aparecem nas campanhas, qual público está respondendo melhor (CTR e conversas), qual formato/tom funciona — 2-3 frases"},
+  {"type":"text","text":"🎬 BRIEF 1 — [produto/campanha base] (formato direto)\\n\\n🎯 Público: [segmento]\\n\\n📱 BUMPER (7s):\\n[00:00:00:00] [00:00:03:00] | TELA: [gancho visual] | FALA: \\"[frase de impacto]\\"\\n[00:00:03:00] [00:00:06:00] | TELA: [produto/benefício] | FALA: \\"[benefício]\\"\\n[00:00:06:00] [00:00:07:00] | TELA: [CTA] | FALA: \\"[chamada]\\"\\n\\n📱 REELS (15s):\\n[00:00:00:00] [00:00:03:00] | TELA: [gancho] | FALA: \\"[abertura forte]\\"\\n[00:00:03:00] [00:00:12:00] | TELA: [desenvolvimento] | FALA: \\"[script completo]\\"\\n[00:00:12:00] [00:00:15:00] | TELA: [CTA] | FALA: \\"[chamada WhatsApp]\\"\\n\\n📱 FEED (30s):\\n[00:00:00:00] [00:00:05:00] | TELA: [gancho] | FALA: \\"[abertura]\\"\\n[00:00:05:00] [00:00:23:00] | TELA: [desenvolvimento completo] | FALA: \\"[script detalhado]\\"\\n[00:00:23:00] [00:00:30:00] | TELA: [CTA] | FALA: \\"[chamada para ação]\\"\\n\\n🎬 Dicas: [luz, câmera, legenda, ritmo]"},
+  {"type":"text","text":"🎬 BRIEF 2 — [produto] (formato depoimento/demonstração)\\n\\n🎯 Público: [segmento] \\n\\n📱 BUMPER (7s):\\n[00:00:00:00] [00:00:07:00] | TELA: [cena única impactante] | FALA: \\"[frase direta]\\"\\n\\n📱 REELS (15s):\\n[00:00:00:00] [00:00:04:00] | TELA: [abertura depoimento] | FALA: \\"[abertura]\\"\\n[00:00:04:00] [00:00:12:00] | TELA: [depoimento/demo] | FALA: \\"[script alternativo]\\"\\n[00:00:12:00] [00:00:15:00] | TELA: [CTA] | FALA: \\"[chamada]\\"\\n\\n📱 FEED (30s):\\n[roteiro completo 30s]\\n\\n🎬 Dicas: [instruções específicas para este formato]"},
+  {"type":"action","priority":"suggestion","title":"Briefs de vídeo prontos","description":"2 briefs com 3 durações (7s/15s/30s) e timecodes CapCut — prontos para gravar","action_type":"info_only","action_payload":{},"status":"pending"}
 ]}
-Período: ${period}. Dados reais das campanhas ativas: ${JSON.stringify(data)}
-Responda APENAS o JSON.`,
+Período: ${period}. Dados das campanhas ativas (incluindo criativos quando disponíveis): ${JSON.stringify(data)}
+Responda APENAS o JSON. Escreva os roteiros completos, palavra por palavra, prontos para gravar.`,
   },
 };
 
@@ -589,9 +702,10 @@ async function runAgentAnalysis(agentId, apiKey, period, accountId, metaToken) {
   // Montar parâmetro de data
   const periodLabel = period || 'last_7d';
   let dateParam;
+  let since_var = null, until_var = null;
   if (period && period.includes('|')) {
-    const [since, until] = period.split('|');
-    dateParam = `time_range=${encodeURIComponent(JSON.stringify({ since, until }))}`;
+    [since_var, until_var] = period.split('|');
+    dateParam = `time_range=${encodeURIComponent(JSON.stringify({ since: since_var, until: until_var }))}`;
   } else {
     dateParam = `date_preset=${periodLabel}`;
   }
@@ -613,18 +727,126 @@ async function runAgentAnalysis(agentId, apiKey, period, accountId, metaToken) {
       .sort((a, b) => parseFloat(b.spend || 0) - parseFloat(a.spend || 0))
       .slice(0, 12);
 
+    // Para Cris, Ada e Cleo: buscar criativos reais dos anúncios top 4
+    let adsCreativeData = [];
+    if (['cris', 'ada', 'cleo'].includes(agentId)) {
+      const topCamps = activeCampaigns.slice(0, 4);
+      for (const camp of topCamps) {
+        const adsResp = await metaGet(
+          `${BASE}/${camp.campaign_id}/ads?fields=id,name,status,creative{title,body,call_to_action_type}&limit=5&access_token=${token}`
+        );
+        if (adsResp.data?.length) {
+          adsCreativeData.push({
+            campaign_id:   camp.campaign_id,
+            campaign_name: camp.campaign_name,
+            ctr:           camp.ctr,
+            cpc:           camp.cpc,
+            spend:         camp.spend,
+            ads: adsResp.data.map(ad => ({
+              name:  ad.name,
+              title: ad.creative?.title || '',
+              body:  ad.creative?.body  || '',
+              cta:   ad.creative?.call_to_action_type || '',
+            })),
+          });
+        }
+      }
+    }
+
+    // ── Buscar período anterior para comparação (todos os agentes) ────────────
+    let prevAcctData = {};
+    try {
+      if (!['maximum'].includes(periodLabel)) {
+        const prevPeriodParam = buildPrevPeriodParam(periodLabel, since_var, until_var);
+        const prevResp = await metaGet(`${BASE}/act_${actId}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach&${prevPeriodParam}&level=account&access_token=${token}`);
+        prevAcctData = prevResp.data?.[0] || {};
+      }
+    } catch { /* fallback gracioso */ }
+
+    // ── Dados extras para TRACE ───────────────────────────────────────────────
+    let decisionHistory = [];
+    let prevAnalyses = [];
+    let dailyTrendData = [];
+    if (agentId === 'trace') {
+      decisionHistory = getDecisionHistory(actId, 45);
+      prevAnalyses = getPreviousAnalyses('trace', actId, 3);
+      try {
+        const dailyResp = await metaGet(`${BASE}/act_${actId}/insights?fields=spend,impressions,clicks,ctr,cpc,date_start,date_stop&date_preset=last_3d&level=account&time_increment=1&access_token=${token}`);
+        dailyTrendData = dailyResp.data || [];
+      } catch { /* fallback */ }
+    }
+
+    // ── Dados extras para BUCK ────────────────────────────────────────────────
+    let monthSpendInfo = {};
+    if (agentId === 'buck') {
+      try {
+        const monthResp = await metaGet(`${BASE}/act_${actId}/insights?fields=spend,impressions,clicks,ctr,cpc&date_preset=this_month&level=account&access_token=${token}`);
+        const monthData = monthResp.data?.[0] || {};
+        const now = new Date();
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const daysPassed = now.getDate();
+        const mtdSpend = parseFloat(monthData.spend || 0);
+        const dailyRate = daysPassed > 0 ? mtdSpend / daysPassed : 0;
+        const projectedSpend = dailyRate * daysInMonth;
+        monthSpendInfo = {
+          mtd_spend: mtdSpend,
+          days_in_month: daysInMonth,
+          days_passed: daysPassed,
+          daily_rate: dailyRate.toFixed(2),
+          projected_spend: projectedSpend.toFixed(2),
+          raw: monthData,
+        };
+      } catch { /* fallback */ }
+    }
+
+    // ── Dados extras para CRIS ────────────────────────────────────────────────
+    let placementData = [];
+    let championsLib = [];
+    if (agentId === 'cris') {
+      try {
+        const placementResp = await metaGet(`${BASE}/act_${actId}/insights?fields=spend,impressions,clicks,ctr,cpc,reach&${dateParam}&breakdowns=publisher_platform,placement&level=ad&limit=50&access_token=${token}`);
+        if (!placementResp.error) placementData = placementResp.data || [];
+      } catch { /* fallback — dado pode não estar disponível */ }
+      championsLib = loadMemory().champions.filter(c => c.account === actId).slice(-10);
+    }
+
+    // ── Dados extras para REX ─────────────────────────────────────────────────
+    let dailyData = [];
+    let prevCampaigns = [];
+    if (agentId === 'rex') {
+      try {
+        const dailyResp = await metaGet(`${BASE}/act_${actId}/insights?fields=spend,impressions,clicks,ctr,cpc,cpm,reach,date_start,date_stop&${dateParam}&level=account&time_increment=1&access_token=${token}`);
+        dailyData = dailyResp.data || [];
+      } catch { /* fallback */ }
+      try {
+        if (!['maximum'].includes(periodLabel)) {
+          const prevPeriodParam = buildPrevPeriodParam(periodLabel, since_var, until_var);
+          const prevCampResp = await metaGet(`${BASE}/act_${actId}/insights?fields=campaign_id,campaign_name,spend,impressions,clicks,ctr,cpc,cpm&${prevPeriodParam}&level=campaign&limit=50&access_token=${token}`);
+          prevCampaigns = (prevCampResp.data || []).filter(c => parseFloat(c.spend || 0) > 0);
+        }
+      } catch { /* fallback */ }
+    }
+
     const payload = {
       periodo: periodLabel,
       account: acctData.data?.[0] || {},
+      account_prev: prevAcctData,
       campaigns: activeCampaigns,
       total_campanhas_ativas: activeCampaigns.length,
+      ...(adsCreativeData.length ? { criativos: adsCreativeData } : {}),
+      ...(agentId === 'trace' ? { decision_history: decisionHistory, prev_analyses: prevAnalyses, daily_trend: dailyTrendData } : {}),
+      ...(agentId === 'buck' ? { month_spend_info: monthSpendInfo } : {}),
+      ...(agentId === 'cris' ? { placement_breakdown: placementData, champions_library: championsLib } : {}),
+      ...(agentId === 'rex' ? { daily_data: dailyData, prev_campaigns: prevCampaigns } : {}),
     };
 
     const def = AGENT_DEFS[agentId];
+    // Ada, Cleo e Rex geram conteúdo longo — precisam de mais tokens
+    const maxTokens = ['ada', 'cleo', 'rex'].includes(agentId) ? 2400 : 1800;
     const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 1800, messages: [{ role: 'user', content: def.prompt(payload, periodLabel) }] }),
+      body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: maxTokens, messages: [{ role: 'user', content: def.prompt(payload, periodLabel) }] }),
     });
 
     if (!aiResp.ok) throw new Error(`Anthropic ${aiResp.status}`);
@@ -641,6 +863,44 @@ async function runAgentAnalysis(agentId, apiKey, period, accountId, metaToken) {
       raw_data: payload,
     };
     saveAgentsData(agents);
+
+    // ── Salvar análise na memória ─────────────────────────────────────────────
+    const mem = loadMemory();
+    mem.analyses.push({
+      ts: new Date().toISOString(),
+      agent: agentId,
+      account: actId,
+      period: periodLabel,
+      metrics: {
+        spend: payload.account.spend || 0,
+        ctr: payload.account.ctr || 0,
+        cpc: payload.account.cpc || 0,
+        impressions: payload.account.impressions || 0,
+        clicks: payload.account.clicks || 0,
+        total_campaigns: activeCampaigns.length,
+      }
+    });
+    // Para Cris: salvar campeão na biblioteca
+    if (agentId === 'cris' && activeCampaigns.length > 0) {
+      const champ = activeCampaigns
+        .filter(c => parseFloat(c.spend || 0) > 15)
+        .sort((a, b) => parseFloat(b.ctr || 0) - parseFloat(a.ctr || 0))[0];
+      if (champ) {
+        const champCreative = adsCreativeData.find(c => c.campaign_id === champ.campaign_id);
+        mem.champions.push({
+          ts: new Date().toISOString(),
+          account: actId,
+          campaign_id: champ.campaign_id,
+          campaign_name: champ.campaign_name,
+          ctr: champ.ctr,
+          cpc: champ.cpc,
+          spend: champ.spend,
+          creative: champCreative?.ads?.[0] || null,
+        });
+      }
+    }
+    saveMemory(mem);
+
     return { ok: true };
   } catch (e) {
     agents[agentId] = { status: 'idle', generated_at: null, messages: [] };
@@ -847,6 +1107,21 @@ app.post('/api/agents/:id/action', async (req, res) => {
   }
 
   saveAgentsData(agents);
+
+  // ── Salvar decisão na memória ─────────────────────────────────────────────
+  const decMem = loadMemory();
+  decMem.decisions.push({
+    ts: new Date().toISOString(),
+    agent: id,
+    account: accId,
+    action_type: msg.action_type,
+    campaign_id: msg.action_payload?.campaign_id || null,
+    campaign_name: msg.action_payload?.campaign_name || null,
+    status: confirmed ? 'executed' : 'skipped',
+    increase_pct: msg.action_payload?.increase_pct || null,
+  });
+  saveMemory(decMem);
+
   res.json(agents);
 });
 
